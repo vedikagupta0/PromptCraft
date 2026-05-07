@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptCraft — AI Prompt Helper</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #14141f;
+    --surface2: #1c1c2e;
+    --surface3: #232338;
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.15);
+    --text: #f0eeff;
+    --muted: #8882aa;
+    --accent-img: #c084fc;
+    --accent-txt: #67e8f9;
+    --accent-img-dim: rgba(192,132,252,0.12);
+    --accent-txt-dim: rgba(103,232,249,0.12);
+    --tag-bg: rgba(255,255,255,0.05);
+    --tag-hover: rgba(255,255,255,0.1);
+    --selected-img: rgba(192,132,252,0.2);
+    --selected-txt: rgba(103,232,249,0.2);
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'Outfit', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ANIMATED BG */
+  .bg-orb {
+    position: fixed; pointer-events: none; border-radius: 50%; filter: blur(120px); opacity: 0.18; z-index: 0;
+  }
+  .orb1 { width: 500px; height: 500px; background: #7c3aed; top: -150px; left: -100px; animation: drift 12s ease-in-out infinite alternate; }
+  .orb2 { width: 400px; height: 400px; background: #0891b2; top: 30%; right: -150px; animation: drift 15s ease-in-out infinite alternate-reverse; }
+  .orb3 { width: 300px; height: 300px; background: #6d28d9; bottom: -100px; left: 40%; animation: drift 10s ease-in-out infinite alternate; }
+  @keyframes drift { 0%{transform:translateY(0) scale(1)} 100%{transform:translateY(40px) scale(1.1)} }
+
+  /* LAYOUT */
+  .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+  /* HEADER */
+  header {
+    padding: 3rem 0 2rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2.5rem;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem;
+  }
+  .logo-area h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #c084fc 0%, #818cf8 40%, #67e8f9 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .logo-area p {
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+  }
+  .mode-badge {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.35rem 0.9rem; border-radius: 999px;
+    border: 1px solid;
+  }
+  .mode-badge.img { border-color: rgba(192,132,252,0.4); color: var(--accent-img); background: var(--accent-img-dim); }
+  .mode-badge.txt { border-color: rgba(103,232,249,0.4); color: var(--accent-txt); background: var(--accent-txt-dim); }
+
+  /* MODE TABS */
+  .mode-tabs {
+    display: flex; gap: 0.75rem; margin-bottom: 2.5rem;
+  }
+  .mode-tab {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.8rem 1.8rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer; transition: all 0.2s;
+    font-family: var(--font-body); font-size: 1rem; font-weight: 500;
+    color: var(--muted);
+  }
+  .mode-tab:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface2); }
+  .mode-tab.active-img {
+    border-color: rgba(192,132,252,0.5);
+    background: rgba(192,132,252,0.1);
+    color: var(--accent-img);
+    box-shadow: 0 0 20px rgba(192,132,252,0.1);
+  }
+  .mode-tab.active-txt {
+    border-color: rgba(103,232,249,0.5);
+    background: rgba(103,232,249,0.1);
+    color: var(--accent-txt);
+    box-shadow: 0 0 20px rgba(103,232,249,0.1);
+  }
+  .mode-tab .tab-icon { font-size: 1.3rem; }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  /* SIDEBAR */
+  .sidebar { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 1rem; }
+  .sidebar-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 0.9rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title {
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .panel-count {
+    font-size: 0.72rem; font-family: var(--font-mono);
+    padding: 0.2rem 0.5rem; border-radius: 4px;
+    background: var(--surface3); color: var(--muted);
+  }
+  .panel-body { padding: 0.8rem; }
+
+  /* SEARCH BAR */
+  .search-wrap { position: relative; }
+  .search-wrap input {
+    width: 100%; padding: 0.65rem 1rem 0.65rem 2.4rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: var(--font-body); font-size: 0.9rem;
+    transition: border-color 0.2s; outline: none;
+  }
+  .search-wrap input:focus { border-color: var(--border-hover); }
+  .search-wrap input::placeholder { color: var(--muted); }
+  .search-icon { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.9rem; pointer-events: none; }
+
+  /* CATEGORY NAV */
+  .cat-list { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.4rem 0; }
+  .cat-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.55rem 0.8rem; border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.15s;
+    font-size: 0.88rem; color: var(--muted);
+  }
+  .cat-item:hover { background: var(--surface2); color: var(--text); }
+  .cat-item.active {
+    color: var(--text); font-weight: 500;
+  }
+  .cat-item.active-img { background: rgba(192,132,252,0.1); color: var(--accent-img); }
+  .cat-item.active-txt { background: rgba(103,232,249,0.1); color: var(--accent-txt); }
+  .cat-badge {
+    font-size: 0.7rem; font-family: var(--font-mono);
+    padding: 0.15rem 0.45rem; border-radius: 4px;
+    background: var(--surface3); color: var(--muted);
+  }
+
+  /* MAIN CONTENT */
+  .content-area { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  /* CATEGORY SECTION */
+  .category-section { }
+  .cat-section-header {
+    display: flex; align-items: center; gap: 0.8rem;
+    margin-bottom: 1rem; padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .cat-section-icon { font-size: 1.2rem; }
+  .cat-section-title { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+  .cat-section-desc { font-size: 0.82rem; color: var(--muted); }
+
+  /* OPTIONS GRID */
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+  .option-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .option-card:hover { border-color: var(--border-hover); background: var(--surface2); transform: translateY(-1px); }
+  .option-card.selected-img {
+    border-color: rgba(192,132,252,0.5);
+    background: rgba(192,132,252,0.1);
+  }
+  .option-card.selected-txt {
+    border-color: rgba(103,232,249,0.5);
+    background: rgba(103,232,249,0.1);
+  }
+  .option-card .opt-check {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    width: 16px; height: 16px; border-radius: 50%;
+    display: none; align-items: center; justify-content: center;
+    font-size: 0.6rem;
+  }
+  .option-card.selected-img .opt-check { display: flex; background: var(--accent-img); color: #0d0d14; }
+  .option-card.selected-txt .opt-check { display: flex; background: var(--accent-txt); color: #0d0d14; }
+  .opt-label { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.3rem; }
+  .opt-desc { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+  .opt-tag {
+    display: inline-block; margin-top: 0.4rem;
+    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 0.15rem 0.45rem; border-radius: 4px;
+  }
+  .opt-tag.kawaii { background: rgba(244,114,182,0.2); color: #f472b6; }
+  .opt-tag.pro { background: rgba(99,102,241,0.2); color: #818cf8; }
+  .opt-tag.cozy { background: rgba(251,191,36,0.2); color: #fbbf24; }
+  .opt-tag.artistic { background: rgba(52,211,153,0.2); color: #34d399; }
+  .opt-tag.technical { background: rgba(59,130,246,0.2); color: #60a5fa; }
+  .opt-tag.bold { background: rgba(239,68,68,0.2); color: #f87171; }
+  .opt-tag.minimal { background: rgba(148,163,184,0.2); color: #94a3b8; }
+  .opt-tag.retro { background: rgba(251,146,60,0.2); color: #fb923c; }
+
+  /* PROMPT BUILDER */
+  .builder-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .builder-header {
+    padding: 1rem 1.4rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .builder-title { font-size: 0.95rem; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+  .builder-actions { display: flex; gap: 0.5rem; }
+  .btn-sm {
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-family: var(--font-body); font-size: 0.8rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-sm:hover { border-color: var(--border-hover); color: var(--text); }
+  .btn-sm.primary-img { border-color: rgba(192,132,252,0.4); color: var(--accent-img); background: rgba(192,132,252,0.1); }
+  .btn-sm.primary-txt { border-color: rgba(103,232,249,0.4); color: var(--accent-txt); background: rgba(103,232,249,0.1); }
+  .btn-sm.primary-img:hover { background: rgba(192,132,252,0.2); }
+  .btn-sm.primary-txt:hover { background: rgba(103,232,249,0.2); }
+  .builder-body { padding: 1.2rem 1.4rem; }
+
+  /* SELECTED CHIPS */
+  .selected-chips {
+    display: flex; flex-wrap: wrap; gap: 0.4rem;
+    min-height: 32px; margin-bottom: 1rem;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.25rem 0.6rem 0.25rem 0.8rem;
+    border-radius: 999px; font-size: 0.78rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+    border: 1px solid;
+  }
+  .chip.img-chip { border-color: rgba(192,132,252,0.35); background: rgba(192,132,252,0.12); color: var(--accent-img); }
+  .chip.txt-chip { border-color: rgba(103,232,249,0.35); background: rgba(103,232,249,0.12); color: var(--accent-txt); }
+  .chip-x { font-size: 0.7rem; opacity: 0.7; }
+  .chip:hover .chip-x { opacity: 1; }
+  .no-chips { font-size: 0.82rem; color: var(--muted); font-style: italic; padding: 0.3rem 0; }
+
+  /* CUSTOM PROMPT */
+  .custom-label { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  .custom-input {
+    width: 100%; padding: 0.8rem 1rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: var(--font-body); font-size: 0.9rem;
+    resize: vertical; min-height: 80px; outline: none;
+    transition: border-color 0.2s; line-height: 1.6;
+  }
+  .custom-input:focus { border-color: var(--border-hover); }
+  .custom-input::placeholder { color: var(--muted); }
+
+  /* GENERATED PROMPT */
+  .generated-prompt {
+    margin-top: 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+  }
+  .gen-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem; }
+  .gen-text {
+    font-family: var(--font-mono); font-size: 0.82rem;
+    line-height: 1.7; color: var(--text);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .gen-text .token-cat { color: var(--accent-img); }
+  .gen-text .token-val { color: var(--text); }
+  .gen-text .token-custom { color: #86efac; }
+  .gen-placeholder { font-size: 0.85rem; color: var(--muted); font-style: italic; text-align: center; padding: 1.5rem 0; }
+
+  /* EXAMPLES SECTION */
+  .examples-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .examples-header {
+    padding: 1rem 1.4rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+  }
+  .examples-header:hover { background: var(--surface2); }
+  .examples-title { font-size: 0.95rem; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 0.5rem; }
+  .examples-toggle { font-size: 0.8rem; color: var(--muted); transition: transform 0.2s; }
+  .examples-toggle.open { transform: rotate(180deg); }
+  .examples-body { padding: 1.2rem 1.4rem; }
+  .example-tabs {
+    display: flex; gap: 0.4rem; margin-bottom: 1.2rem; flex-wrap: wrap;
+  }
+  .ex-tab {
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted);
+    font-family: var(--font-body); font-size: 0.78rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .ex-tab:hover { border-color: var(--border-hover); color: var(--text); }
+  .ex-tab.active-img { border-color: rgba(192,132,252,0.4); background: rgba(192,132,252,0.1); color: var(--accent-img); }
+  .ex-tab.active-txt { border-color: rgba(103,232,249,0.4); background: rgba(103,232,249,0.1); color: var(--accent-txt); }
+  .example-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 1rem 1.2rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .example-card:hover { border-color: var(--border-hover); }
+  .example-card:last-child { margin-bottom: 0; }
+  .ex-num { font-size: 0.68rem; font-family: var(--font-mono); color: var(--muted); margin-bottom: 0.4rem; }
+  .ex-title { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+  .ex-prompt {
+    font-family: var(--font-mono); font-size: 0.78rem;
+    color: var(--muted); line-height: 1.65;
+    border-left: 2px solid var(--border);
+    padding-left: 0.8rem;
+    margin-bottom: 0.5rem;
+  }
+  .ex-explain { font-size: 0.8rem; color: var(--muted); line-height: 1.6; }
+  .ex-tags { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  .ex-tag {
+    font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0.15rem 0.45rem; border-radius: 4px;
+    background: var(--surface3); color: var(--muted);
+  }
+
+  /* COPY TOAST */
+  .toast {
+    position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    background: var(--surface2); border: 1px solid var(--border-hover);
+    border-radius: 999px; padding: 0.6rem 1.4rem;
+    font-size: 0.85rem; font-weight: 500; color: var(--text);
+    opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .sidebar { position: static; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+<div class="bg-orb orb3"></div>
+
+<div class="app">
+  <header>
+    <div class="logo-area">
+      <h1>PromptCraft</h1>
+      <p>Build powerful prompts for AI image &amp; text generation — May 2026 edition</p>
+    </div>
+    <div id="mode-badge" class="mode-badge img">🖼 Image Mode</div>
+  </header>
+
+  <!-- MODE TABS -->
+  <div class="mode-tabs">
+    <button class="mode-tab active-img" onclick="switchMode('image')" id="tab-image">
+      <span class="tab-icon">🖼</span> Image Prompts
+    </button>
+    <button class="mode-tab" onclick="switchMode('text')" id="tab-text">
+      <span class="tab-icon">✍️</span> Text Prompts
+    </button>
+  </div>
+
+  <div class="main-grid">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-panel">
+        <div class="panel-header">
+          <span class="panel-title">Search Options</span>
+        </div>
+        <div class="panel-body">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search styles, moods, settings…" oninput="doSearch(this.value)">
+          </div>
+        </div>
+      </div>
+      <div class="sidebar-panel">
+        <div class="panel-header">
+          <span class="panel-title">Categories</span>
+          <span class="panel-count" id="cat-count">0</span>
+        </div>
+        <div class="panel-body">
+          <div class="cat-list" id="cat-list"></div>
+        </div>
+      </div>
+      <div class="sidebar-panel">
+        <div class="panel-header">
+          <span class="panel-title">Quick Tips</span>
+        </div>
+        <div class="panel-body" style="padding: 0.9rem;">
+          <div style="font-size: 0.8rem; color: var(--muted); line-height: 1.7;" id="tips-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="content-area">
+      <!-- BUILDER -->
+      <div class="builder-panel">
+        <div class="builder-header">
+          <span class="builder-title">🧱 Prompt Builder</span>
+          <div class="builder-actions">
+            <button class="btn-sm" onclick="clearAll()">Clear All</button>
+            <button class="btn-sm" id="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+          </div>
+        </div>
+        <div class="builder-body">
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.7rem;">
+            <div class="custom-label" style="margin-bottom:0">Selected Options</div>
+            <span style="font-size:0.72rem; color: var(--muted);">(click any option card below to add)</span>
+          </div>
+          <div class="selected-chips" id="chips-container">
+            <span class="no-chips" id="no-chips-msg">No options selected yet — pick from the panels below ↓</span>
+          </div>
+          <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-bottom: 1rem;">
+            <div class="custom-label">Your Subject / Core Idea</div>
+            <textarea class="custom-input" id="custom-input" placeholder="Describe your main subject, scene, or topic…" oninput="buildPrompt()"></textarea>
+          </div>
+          <div class="generated-prompt">
+            <div class="gen-label">Generated Prompt</div>
+            <div id="gen-output"><div class="gen-placeholder">Select options above and add your subject to generate a prompt</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTIONS AREA -->
+      <div id="options-area"></div>
+
+      <!-- EXAMPLES -->
+      <div class="examples-panel">
+        <div class="examples-header" onclick="toggleExamples()">
+          <span class="examples-title">📚 Sample Prompts — Learn by Example</span>
+          <span class="examples-toggle" id="ex-toggle">▼</span>
+        </div>
+        <div class="examples-body" id="examples-body" style="display:none">
+          <div class="example-tabs" id="ex-tabs"></div>
+          <div id="ex-cards"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Copied to clipboard!</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const DATA = {
+  image: {
+    categories: [
+      {
+        id: "style", label: "Art Style", icon: "🎨",
+        desc: "Defines the overall visual language and artistic movement of your image",
+        options: [
+          { label: "Photorealistic", tag: "technical", desc: "Mimics a high-end camera photograph with lifelike lighting, textures, and depth-of-field. Use for product shots, portraits, architecture." },
+          { label: "Oil Painting", tag: "artistic", desc: "Rich, textured brushstrokes with layered pigments. Warm, classical feel — think Old Masters or contemporary impressionism." },
+          { label: "Watercolor", tag: "cozy", desc: "Soft washes of translucent color with gentle bleeds and blooms. Light, airy, and dreamy — perfect for nature and illustration." },
+          { label: "Anime / Manga", tag: "kawaii", desc: "Japanese animation aesthetic with bold lines, expressive eyes, and vibrant flat colors. Ranges from shonen action to cute shoujo." },
+          { label: "Kawaii", tag: "kawaii", desc: "Japanese 'cute' culture: pastel palettes, chubby proportions, sparkles, big eyes, soft round shapes. Very sweet and adorable." },
+          { label: "Cyberpunk", tag: "bold", desc: "Neon-lit dystopian future, rain-slick streets, holographic ads, chrome augmentations. Dark backgrounds with electric accent colors." },
+          { label: "Studio Ghibli", tag: "cozy", desc: "Lush, hand-painted look inspired by the legendary Japanese animation studio — warm greens, soft light, whimsical nature scenes." },
+          { label: "Flat Design", tag: "minimal", desc: "Bold geometric shapes, limited shadows, clean color blocks. Modern and graphic — ideal for icons, posters, infographic art." },
+          { label: "Concept Art", tag: "pro", desc: "Professional digital illustration with strong silhouettes and dramatic lighting, used in game/film pre-production pipelines." },
+          { label: "Pixel Art", tag: "retro", desc: "Deliberate low-resolution aesthetic with visible square pixels. Nostalgic 8/16-bit game feel, often with limited color palettes." },
+          { label: "Surrealism", tag: "artistic", desc: "Dream-logic imagery: melting clocks, floating figures, impossible scale. Draws from the subconscious like Dalí or Magritte." },
+          { label: "Vaporwave", tag: "retro", desc: "80s/90s nostalgia aesthetic — pink and cyan gradients, Roman busts, grid floors, glitch effects, cassette tapes." },
+          { label: "Impressionism", tag: "artistic", desc: "Loose, expressive brushwork capturing light and movement rather than crisp detail. Monet-style dappled light, soft edges, color vibration." },
+          { label: "Art Nouveau", tag: "artistic", desc: "Organic flowing lines inspired by natural forms, decorative borders, stylized florals, and the elegant curves of Mucha or Klimt." },
+          { label: "Art Deco", tag: "pro", desc: "Geometric symmetry, gold and black palettes, sleek architectural lines. The glamour of 1920s luxury — think Gatsby posters." },
+          { label: "Ukiyo-e", tag: "artistic", desc: "Traditional Japanese woodblock print style with flat areas of color, bold contour lines, and stylized landscapes inspired by Hokusai." },
+          { label: "Bauhaus", tag: "minimal", desc: "Radical geometric simplicity: primary colors, basic shapes, functional elegance. The foundational language of modern graphic design." },
+          { label: "Low Poly", tag: "technical", desc: "3D-rendered aesthetic using visible triangular facets and flat-shaded polygons. Geometric, modern, and game-engine derived." },
+          { label: "Isometric", tag: "technical", desc: "Equal-angle 3D projection creating a tilted parallel-view grid. Common in game design, infographics, and architectural diagrams." },
+          { label: "Double Exposure", tag: "artistic", desc: "Two images blended together transparently — a portrait merged with a forest, a city overlaid in a silhouette. Ethereal and poetic." },
+          { label: "Glitch Art", tag: "bold", desc: "Intentional digital corruption: scan lines, color channel splitting, pixelation artifacts, data-moshing. Raw and confrontational." },
+          { label: "Stained Glass", tag: "artistic", desc: "Bold lead outlines separating jewel-toned transparent color fields. Luminous, medieval, spiritual — like cathedral windows brought to life." },
+          { label: "Ink & Wash", tag: "artistic", desc: "East Asian brushwork combining bold sumi-e ink strokes with fluid grey washes. Minimalist, contemplative, and highly skilled." },
+          { label: "Comic Book", tag: "bold", desc: "Bold inked outlines, halftone dot shading, action lines, and vibrant flat colors. Classic superhero or indie comix aesthetic." },
+          { label: "Pencil Sketch", tag: "minimal", desc: "Raw graphite or charcoal mark-making with visible texture and hatching. Feels intimate and process-visible, like a study." },
+          { label: "Neon Sign Art", tag: "bold", desc: "Glowing glass tube light aesthetics — warm neon colors against dark backgrounds, with characteristic halo blooms and reflections." },
+          { label: "Fantasy Illustration", tag: "artistic", desc: "Richly detailed world-building art with mythological creatures, enchanted landscapes, and legendary heroes. Think classic fantasy book covers." },
+          { label: "Horror / Gothic", tag: "bold", desc: "Dark, decayed, unsettling imagery — Victorian gloom, rotting textures, pale figures, dramatic shadows. Inspired by gothic literature." },
+          { label: "Steampunk", tag: "retro", desc: "Victorian-era technology reimagined with brass gears, steam pipes, airships, and leather goggles. Industrial romanticism." },
+          { label: "Solarpunk", tag: "cozy", desc: "Optimistic near-future where nature and technology co-exist — living buildings covered in plants, solar panels, vibrant community spaces." },
+          { label: "Brutalist Design", tag: "bold", desc: "Raw, unfinished concrete aesthetics, heavy typography, confrontational layouts. Anti-decorative, muscular, and intentionally harsh." },
+          { label: "Psychedelic", tag: "bold", desc: "Vivid, saturated, morphing patterns — concentric spirals, kaleidoscopic symmetry, melting boundaries. 60s counterculture visuals." },
+          { label: "Cottagecore", tag: "cozy", desc: "Idyllic rural life aesthetic: wildflowers, linen textures, wicker baskets, vegetable gardens, soft morning light through windows." },
+          { label: "Dark Academia", tag: "artistic", desc: "Gothic university aesthetics — candlelight, old leather books, classical sculptures, autumnal tones, ivy-covered stone walls." },
+          { label: "Maximalism", tag: "bold", desc: "More is more — every surface decorated, layered patterns, rich clashing colors, ornate detail filling every corner of the frame." },
+          { label: "Medical Illustration", tag: "technical", desc: "Precise anatomical or biological rendering in the style of scientific atlases — clean backgrounds, labeled cross-sections, clinical accuracy." },
+          { label: "Blueprint / Technical", tag: "technical", desc: "Engineering drafting aesthetic with white lines on deep blue backgrounds, precise measurements, schematic notation." },
+          { label: "Watercolor + Ink", tag: "artistic", desc: "Line art inked with pen, then filled with loose watercolor washes. The clean structure of drawing meets the freedom of painting." },
+          { label: "Abstract Expressionism", tag: "artistic", desc: "Gestural, emotional mark-making prioritizing feeling over form. Pollock's drips, Rothko's color fields — raw creative energy." },
+          { label: "Retrowave / Synthwave", tag: "retro", desc: "Sunset gradients, chrome typography, grid horizons, sports cars. The neon fever dream of an alternate 1980s future." },
+          { label: "Claymation / Stop Motion", tag: "kawaii", desc: "The look of hand-shaped clay figures — visible fingerprints, rounded edges, matte textures, warm studio lighting." },
+          { label: "Papercraft / Origami", tag: "minimal", desc: "Simulated folded paper world — crisp fold lines, flat paper surfaces, cast shadows revealing the paper depth." },
+          { label: "Tarot Card Art", tag: "artistic", desc: "Symbolic, ornate illustration style of classic tarot decks. Rich in allegory, bordered with decorative patterns, archaic figure types." },
+          { label: "Ukiyo-e Wave Print", tag: "artistic", desc: "Specifically the dynamic, frothy wave style of Hokusai's Great Wave — iconic diagonal compositions with white foam detail." },
+          { label: "Neoclassical", tag: "pro", desc: "Revival of ancient Greek and Roman aesthetics — marble textures, draped figures, heroic composition, cool light, idealized forms." },
+          { label: "Modernist Poster", tag: "pro", desc: "Mid-century graphic design language — limited colors, geometric simplicity, bold sans-serif typography, flat shapes." },
+        ]
+      },
+      {
+        id: "lighting", label: "Lighting", icon: "💡",
+        desc: "Lighting is the single biggest factor that determines mood in any image",
+        options: [
+          { label: "Golden Hour", tag: "cozy", desc: "Warm, honey-golden sunlight just after sunrise or before sunset. Soft, directional, extremely flattering and atmospheric." },
+          { label: "Studio Lighting", tag: "pro", desc: "Controlled 3-point lighting setup: key, fill, and rim. Clean, professional, used in commercial photography and portraits." },
+          { label: "Neon Glow", tag: "bold", desc: "Vivid electric colors emitting soft light in a dark scene. Creates dramatic contrast and a nocturnal, urban atmosphere." },
+          { label: "Cinematic", tag: "pro", desc: "Movie-quality lighting with strong directionality, selective focus, and color grading — feels like a film still from a major production." },
+          { label: "Soft Diffused", tag: "cozy", desc: "Even, shadow-free light as if through a large softbox or overcast sky. Gentle and flattering, with minimal harsh contrast." },
+          { label: "Dramatic Shadows", tag: "bold", desc: "High-contrast chiaroscuro where deep shadows play against bright highlights. Mysterious, intense, theatrical." },
+          { label: "Bioluminescent", tag: "artistic", desc: "Organic glowing light from within — like deep-sea creatures or fireflies. Creates an ethereal, magical underwater or forest feel." },
+          { label: "Backlit / Silhouette", tag: "artistic", desc: "Subject is lit from behind creating a dark outline against a bright background. Powerful for dramatic, moody compositions." },
+          { label: "Blue Hour", tag: "artistic", desc: "The brief twilight period after sunset when the sky turns deep blue. Cool, melancholic, and hauntingly beautiful." },
+          { label: "Candlelight", tag: "cozy", desc: "Warm flickering orange-amber glow that falls off quickly into darkness. Creates an intimate, ancient, slightly mysterious ambiance." },
+          { label: "Moonlight", tag: "artistic", desc: "Cold, silver-blue nocturnal light casting long soft shadows. Romantic, mysterious, used in fantasy and horror alike." },
+          { label: "Overcast / Flat Light", tag: "minimal", desc: "Diffused light from an overcast sky with no harsh shadows. Neutral, clinical, works beautifully for street photography and portraits." },
+          { label: "Dappled Forest Light", tag: "cozy", desc: "Sunlight filtering through a leafy canopy creating shifting patterns of light and shadow on the ground. Organic and peaceful." },
+          { label: "Volumetric / God Rays", tag: "artistic", desc: "Visible light beams cutting through atmospheric haze or dust. Dramatic shafts emanating from windows, openings, or behind clouds." },
+          { label: "Rim Lighting", tag: "pro", desc: "Light placed behind and to the side of the subject creating a bright edge outline against a darker background. Separates and elevates." },
+          { label: "Underwater Caustics", tag: "artistic", desc: "The rippling light patterns created by sunlight refracting through moving water. Creates dynamic, wavy light patterns on submerged subjects." },
+          { label: "Practical Lights", tag: "retro", desc: "Light sources visible within the frame — lamps, neon signs, TVs, fires, light bulbs. Creates realistic, grounded atmosphere." },
+          { label: "Infrared", tag: "technical", desc: "Simulates infrared photography where foliage renders bright white and skies darken dramatically. Surreal and otherworldly." },
+          { label: "Fire / Torchlight", tag: "bold", desc: "Warm amber flame casting flickering, dancing shadows. Primal and dramatic — barbarian campfires, medieval torches, volcanic glow." },
+          { label: "Lens Flare", tag: "artistic", desc: "Intentional optical artifact where bright light sources create streaks, circles, and polygon shapes across the image. Cinematic energy." },
+          { label: "Rainbow / Prismatic", tag: "kawaii", desc: "Light split through a prism casting rainbow spectrum streaks across the scene. Joyful, magical, and optically beautiful." },
+          { label: "Aurora / Northern Lights", tag: "artistic", desc: "Sweeping curtains of green, purple, and cyan bioluminescent light across a night sky. Epic natural spectacle." },
+          { label: "High Key", tag: "minimal", desc: "Very bright, nearly all-white background with minimal shadows. Used in commercial photography for clean, modern, optimistic images." },
+          { label: "Low Key", tag: "bold", desc: "Predominantly dark image with selective bright areas. Creates drama, mystery, and a sense of depth pulling from shadows." },
+          { label: "Rembrandt Lighting", tag: "artistic", desc: "A small triangle of light on the shadowed cheek, creating the illusion of depth and modeling in portraiture. The Old Master technique." },
+          { label: "Split Lighting", tag: "bold", desc: "Exactly half the face or subject is lit and half is in shadow. Stark, dramatic, confrontational — associated with villain or intensity." },
+          { label: "Top Down / Overhead", tag: "technical", desc: "Light source directly above casting straight-down shadows. Harsh noon sun or overhead lamp — clinical and dramatic simultaneously." },
+          { label: "Fluorescent / Clinical", tag: "technical", desc: "Cool, slightly greenish artificial overhead lighting of offices and hospitals. Creates a mundane, slightly unsettling reality." },
+        ]
+      },
+      {
+        id: "mood", label: "Mood & Atmosphere", icon: "🌫",
+        desc: "The emotional feeling conveyed by the overall composition and color palette",
+        options: [
+          { label: "Cozy & Warm", tag: "cozy", desc: "Soft amber tones, intimate spaces, blankets, candles, mugs of tea. Inviting and safe — like a hygge Danish living room in winter." },
+          { label: "Eerie & Unsettling", tag: "bold", desc: "Something is slightly off — uncanny proportions, desaturated colors, empty spaces. Creates psychological tension without overt horror." },
+          { label: "Epic & Grand", tag: "bold", desc: "Vast scale, dramatic clouds, towering landscapes. Makes the viewer feel small but awe-struck — think fantasy vistas or space." },
+          { label: "Whimsical", tag: "kawaii", desc: "Playful, fantastical, slightly absurd in a charming way. Talking animals, floating teacups, impossible but delightful worlds." },
+          { label: "Melancholic", tag: "artistic", desc: "Quiet sadness — rain on windows, empty benches, faded photographs. Bittersweet and introspective, beauty in solitude." },
+          { label: "Serene & Peaceful", tag: "cozy", desc: "Calm, unhurried, meditative. Misty mornings, still water, empty paths through nature. Breathes tranquility." },
+          { label: "Chaotic & Dynamic", tag: "bold", desc: "Motion blur, clashing elements, explosive energy. Everything is in motion — captures action at its most intense." },
+          { label: "Nostalgic", tag: "retro", desc: "Visual cues from a specific past era evoke personal and cultural memory. Grainy film, vintage colors, aged textures." },
+          { label: "Romantic", tag: "artistic", desc: "Soft focus, warm light, intimate proximity, dreamy color grading. Evoking love, longing, and tender connection." },
+          { label: "Tense & Suspenseful", tag: "bold", desc: "Low angles, tight framing, desaturated shadows, directional glances off-frame. The moment before something happens." },
+          { label: "Joyful & Celebratory", tag: "kawaii", desc: "Bright saturated colors, confetti, laughter, upward movement. Pure delight and positive energy radiating from the image." },
+          { label: "Mystical & Otherworldly", tag: "artistic", desc: "Ancient symbols, impossible architecture, cosmic scale, liminal spaces. Transcends ordinary reality into the realm of myth." },
+          { label: "Lonely & Isolated", tag: "artistic", desc: "A single figure in a vast, empty landscape. The weight of solitude made visible — existential, contemplative, quietly devastating." },
+          { label: "Dangerous & Threatening", tag: "bold", desc: "Storm-dark skies, broken environments, warning signs, predatory angles. Danger saturating the scene before it strikes." },
+          { label: "Hopeful & Uplifting", tag: "cozy", desc: "Warm light on the horizon, open roads, reaching gestures. The emotional energy of dawn and new beginnings." },
+          { label: "Dreamy & Surreal", tag: "artistic", desc: "Logic slightly bent — colors too vivid, proportions gently wrong, impossible coexistence of elements. Liminal and hypnotic." },
+          { label: "Industrial & Gritty", tag: "bold", desc: "Rust, grime, factory smoke, cracked concrete. Beauty found in urban decay and working machinery." },
+          { label: "Sacred & Spiritual", tag: "artistic", desc: "Devotional light, ritual objects, symbolic geometry, reverent composition. Transcendent and awe-inspiring." },
+          { label: "Playful & Energetic", tag: "kawaii", desc: "Bright, bouncy, full of motion. Characters mid-jump, splashing water, running — youth and vitality captured." },
+          { label: "Desolate & Post-Apocalyptic", tag: "bold", desc: "Ruined cities, overgrown roads, empty skies. Civilization's aftermath — both haunting and strangely beautiful." },
+          { label: "Intimate & Tender", tag: "cozy", desc: "Close physical proximity, soft touch, gentle expressions. The quiet warmth of human connection in private moments." },
+          { label: "Adventurous & Exciting", tag: "bold", desc: "Horizon lines, open seas, mountain peaks, figures in motion toward something unknown. The thrill of exploration." },
+          { label: "Luxurious & Opulent", tag: "pro", desc: "Gold, marble, velvet, crystal. Every surface expensive. The visual language of extreme wealth and refined taste." },
+          { label: "Meditative & Zen", tag: "minimal", desc: "Extreme stillness. Raked sand, single objects, quiet geometry. Emptiness as presence — the visual equivalent of deep breath." },
+        ]
+      },
+      {
+        id: "composition", label: "Composition", icon: "🖼",
+        desc: "How elements are arranged within the frame — affects visual flow and hierarchy",
+        options: [
+          { label: "Rule of Thirds", tag: "pro", desc: "Subject placed at intersection of imaginary grid lines. Creates natural visual balance and avoids static centered compositions." },
+          { label: "Symmetrical", tag: "minimal", desc: "Perfect mirror balance across a central axis. Conveys order, power, formality — used in architecture and fashion editorial." },
+          { label: "Bird's Eye View", tag: "technical", desc: "Directly overhead perspective looking straight down. Flattens subjects into graphic patterns — great for food, maps, crowds." },
+          { label: "Worm's Eye View", tag: "bold", desc: "Looking upward from ground level. Makes subjects appear towering and dominant. Dramatic for architecture and superhero imagery." },
+          { label: "Portrait Closeup", tag: "artistic", desc: "Fills frame with a face or detail, cutting out background distractions. Forces intimacy and reveals texture and emotion." },
+          { label: "Wide Establishing Shot", tag: "technical", desc: "Shows the full environment to place subjects in context. Used to convey scale, setting, and world-building." },
+          { label: "Dutch Angle", tag: "bold", desc: "Camera tilted on its axis, creating a diagonal horizon. Suggests unease, instability, or heightened drama." },
+          { label: "Centered Symmetry", tag: "minimal", desc: "Subject centered with balanced environment around it — a Wes Anderson signature. Formal, deliberate, almost comic in precision." },
+          { label: "Leading Lines", tag: "pro", desc: "Roads, fences, rivers, or shadows that draw the eye toward the subject. Creates depth and guides the viewer's attention intentionally." },
+          { label: "Frame Within Frame", tag: "artistic", desc: "Natural or architectural elements — windows, doorways, arches, trees — frame the main subject within the image. Adds depth and context." },
+          { label: "Negative Space", tag: "minimal", desc: "Deliberate use of empty area around the subject. Isolates, emphasizes, and allows the image to breathe. Used in minimalist and zen aesthetics." },
+          { label: "Forced Perspective", tag: "technical", desc: "Optical illusion using camera placement to make objects appear much larger or smaller than reality. Playful and surprising." },
+          { label: "Diagonal Composition", tag: "bold", desc: "Key elements arranged along diagonal lines rather than horizontals. Creates a sense of movement, instability, and dynamic energy." },
+          { label: "Triptych / Diptych", tag: "artistic", desc: "Three or two panels side by side telling a connected story or showing transformation. Used in classical altarpieces and modern series." },
+          { label: "Macro / Extreme Closeup", tag: "technical", desc: "Subject fills the entire frame at microscopic scale — water droplets, insect eyes, fabric weave. Reveals an unseen world." },
+          { label: "Panoramic", tag: "technical", desc: "Extreme horizontal width capturing vast landscapes in a single uninterrupted sweep. Cinematically immersive and expansive." },
+          { label: "S-Curve Composition", tag: "artistic", desc: "A winding path, river, or figure trace an S-shape through the frame. Conveys flow, elegance, and natural rhythm." },
+          { label: "Overlapping Layers", tag: "artistic", desc: "Foreground, midground, and background elements overlap to create spatial depth. Richly detailed and painterly." },
+          { label: "Over the Shoulder", tag: "pro", desc: "Camera behind and to the side of one figure looking at another. Classic conversational framing that establishes relationship and scale." },
+          { label: "Silhouetted Foreground", tag: "artistic", desc: "Dark undetailed foreground elements frame a bright, detailed background scene. Adds mystery and layered depth." },
+          { label: "Aerial / Drone", tag: "technical", desc: "High altitude overview showing patterns, scale, and geography. Reveals the world as abstracted shapes and textures." },
+          { label: "Environmental Portrait", tag: "pro", desc: "Subject shown in their natural habitat or workplace. Context tells a story — a chef in a kitchen, a painter in their studio." },
+          { label: "Minimalist Single Object", tag: "minimal", desc: "One object, huge empty space. All attention forced onto a single element. The subject's solitude becomes its meaning." },
+        ]
+      },
+      {
+        id: "color", label: "Color Palette", icon: "🎭",
+        desc: "Color choices define the emotional register and visual cohesion of the image",
+        options: [
+          { label: "Pastel Dream", tag: "kawaii", desc: "Soft, desaturated pinks, lavenders, mints, and peaches. Light and airy — associated with spring, childhood, and candy aesthetics." },
+          { label: "Monochromatic", tag: "minimal", desc: "Single hue in varying shades and tints. Sophisticated and cohesive — creates strong visual unity and intentional restraint." },
+          { label: "Complementary Pop", tag: "bold", desc: "Two opposite colors on the wheel (e.g., orange and blue) used together for maximum visual tension and vibrancy." },
+          { label: "Earth Tones", tag: "cozy", desc: "Browns, terracottas, warm beiges, olive greens. Grounded, natural, organic — evokes soil, wood, clay, and autumn leaves." },
+          { label: "Neon Acid", tag: "bold", desc: "Hyper-saturated electric colors — lime, magenta, cyan — often against black. Maximalist, aggressive, and visually arresting." },
+          { label: "Vintage Faded", tag: "retro", desc: "Slightly desaturated, warm with a yellow or red cast, as if aged. Evokes old photographs, film grain, and the passage of time." },
+          { label: "Cool Minimalist", tag: "minimal", desc: "Whites, light grays, cool blues. Clinical and calm — associated with Scandinavian design, tech products, and serene spaces." },
+          { label: "Dark Moody", tag: "artistic", desc: "Deep shadows, low saturation, brooding. Colors emerge from near-black backgrounds — dramatic and cinematic." },
+          { label: "Golden & Amber", tag: "cozy", desc: "Rich honey, burnished gold, warm amber, deep cognac tones. Autumnal and luxurious — the color of candlelight and treasure." },
+          { label: "Oceanic Blues", tag: "artistic", desc: "Deep navy, turquoise, aqua, seafoam. The full spectrum of water from midnight deep to tropical shallow. Serene and expansive." },
+          { label: "Forest Green", tag: "cozy", desc: "Moss, sage, emerald, hunter — the full palette of natural foliage. Earthy, restorative, and deeply calming." },
+          { label: "Infrared Red", tag: "bold", desc: "Vivid magenta foliage against cyan skies — the surreal palette of infrared photography. Otherworldly and striking." },
+          { label: "Black & White", tag: "minimal", desc: "Complete desaturation emphasizing form, texture, contrast, and light quality. Timeless, graphic, and emotionally powerful." },
+          { label: "Duotone", tag: "pro", desc: "Two carefully chosen colors replacing the full tonal range. Bold and graphic — a Spotify-era aesthetic that's modern and clean." },
+          { label: "Triadic Harmony", tag: "artistic", desc: "Three colors equally spaced around the color wheel used together. Vibrant yet balanced — think primary color compositions." },
+          { label: "Rose Gold & Blush", tag: "kawaii", desc: "Warm pinks and metallic rose gold tones. Feminine, luxurious, Instagram-era aesthetic. Soft but with a metallic shine." },
+          { label: "Cyberpunk Neon", tag: "bold", desc: "Specifically the neon purple, hot pink, and electric blue palette of cyberpunk. Dark urban base with electric accent colors." },
+          { label: "Autumnal Warmth", tag: "cozy", desc: "Burnt orange, russet red, mustard yellow, deep brown. The rich color explosion of deciduous forests in October." },
+          { label: "Winter Cold", tag: "minimal", desc: "Ice blue, pale grey, pure white, silver. The desaturated, crystal palette of frozen landscapes and cold light." },
+          { label: "Desert Sand", tag: "cozy", desc: "Ochre, sand, dusty rose, bleached bone. The sun-baked palette of arid landscapes — warm but not saturated." },
+          { label: "Midnight Dark", tag: "bold", desc: "Near-blacks with deep purple, navy, and midnight blue undertones. The rich darkness of night skies and deep water." },
+          { label: "Jewel Tones", tag: "artistic", desc: "Sapphire, emerald, ruby, amethyst — deep, saturated rich colors with the luminosity of precious stones. Opulent and sumptuous." },
+          { label: "Muted & Desaturated", tag: "minimal", desc: "All colors pulled toward grey, creating an understated, moody palette. Film-photographer's dream — quiet and sophisticated." },
+          { label: "Iridescent / Holographic", tag: "kawaii", desc: "Color-shifting surfaces — like oil on water, abalone shell, or holographic foil. Colors shift as the viewing angle changes." },
+          { label: "Sepia / Aged", tag: "retro", desc: "The warm brown tone of aged silver photographs. Immediately signals the past, memory, and historical documentation." },
+          { label: "High Contrast B&W", tag: "bold", desc: "Deep blacks and brilliant whites with minimal mid-tones. Graphic, stark, architectural — maximum visual punch." },
+          { label: "Spring Florals", tag: "kawaii", desc: "Cherry blossom pink, fresh green, daffodil yellow, sky blue. The jubilant, fresh color palette of spring renewal." },
+          { label: "Neon on Dark", tag: "bold", desc: "Specific combination of electric neon accents against deep black. Signs, underglow, screen light. Urban night energy." },
+        ]
+      },
+      {
+        id: "quality", label: "Quality & Render", icon: "⚙️",
+        desc: "Technical rendering directives that signal quality level to the AI model",
+        options: [
+          { label: "8K Ultra HD", tag: "technical", desc: "Signals maximum resolution and detail. The AI attempts to render fine textures, sharp edges, and intricate details throughout." },
+          { label: "Hyperdetailed", tag: "technical", desc: "Instructs the model to focus on micro-level detail — individual threads, pores, leaf veins. Slower to generate but exceptionally crisp." },
+          { label: "Award-Winning", tag: "pro", desc: "Contextualizes the result within best-in-class photography or illustration standards. Often improves composition and technical quality." },
+          { label: "Trending on ArtStation", tag: "pro", desc: "References the professional digital art platform — signals that the image should match the quality and style of top concept artists." },
+          { label: "Unreal Engine 5", tag: "technical", desc: "References real-time game rendering technology known for photorealistic lighting, ray tracing, and highly detailed environments." },
+          { label: "Film Grain", tag: "retro", desc: "Adds organic analog noise texture reminiscent of 35mm film. Softens the over-crisp look of AI imagery and adds character." },
+          { label: "Bokeh", tag: "artistic", desc: "Blurred background with visible circular out-of-focus highlights. Signals a wide-aperture lens look that isolates the subject beautifully." },
+          { label: "No Watermark, Clean", tag: "technical", desc: "Removes typical AI artifacts — tells the model to produce a polished, artifact-free result without logos or degrades." },
+          { label: "Ray Tracing", tag: "technical", desc: "Global illumination technique simulating physically accurate light bouncing. Produces realistic reflections, shadows, and caustics." },
+          { label: "Subsurface Scattering", tag: "technical", desc: "Light penetrating translucent surfaces (skin, wax, leaves, marble) and scattering internally. Makes organic subjects look real." },
+          { label: "Depth of Field", tag: "technical", desc: "Selective focus where only a specific distance plane is sharp. Creates professional photographic quality and visual hierarchy." },
+          { label: "4K Resolution", tag: "technical", desc: "High-definition standard for modern displays. Crisp, clean output with enough detail for large prints and close inspection." },
+          { label: "Photographic Realism", tag: "technical", desc: "Instructs maximum camera-like realism — correct lens distortion, accurate light physics, authentic material response." },
+          { label: "Magazine Quality", tag: "pro", desc: "The slick, color-corrected, professionally retouched look of a high-end fashion or lifestyle magazine spread." },
+          { label: "Museum Quality", tag: "pro", desc: "Fine art standard — painterly with depth, carefully considered composition, worthy of hanging in a major gallery." },
+          { label: "Octane Render", tag: "technical", desc: "References the Octane physically-based render engine, known for clean, luminous images with excellent material quality." },
+          { label: "Redshift / Arnold", tag: "technical", desc: "Professional GPU render engines used in VFX pipelines. Signals production-quality complexity and technical sophistication." },
+          { label: "IMAX Quality", tag: "technical", desc: "Maximum large-format film quality with extreme sharpness across the entire frame. Epic cinematic resolution." },
+          { label: "Vintage Film Stock", tag: "retro", desc: "Specific analog film emulsions (Kodak Portra, Fuji Velvia) with characteristic color science, halation, and tonal response." },
+          { label: "Matte Painting Quality", tag: "pro", desc: "The photorealistic compositing quality of Hollywood matte paintings — seamlessly blended, believable at any scale." },
+          { label: "Concept Art Quality", tag: "pro", desc: "The professional polish of shipped game or film concept art — strong read at thumbnail, rich detail at close inspection." },
+          { label: "Polaroid / Instant Film", tag: "retro", desc: "The warm, slightly over-exposed, vignetted look of Polaroid instant photography. Square format, faded whites, memory-like." },
+          { label: "HDR Photography", tag: "technical", desc: "High Dynamic Range — visible detail in both deep shadows and bright highlights simultaneously. Vivid and technically maximal." },
+          { label: "Long Exposure", tag: "artistic", desc: "Motion blur from extended shutter times — silky waterfalls, light trails from cars, star trails across night skies." },
+          { label: "Double Exposure Effect", tag: "artistic", desc: "Two exposures blended transparently in-camera or post. Poetic, layered, narrative — the original analog compositing." },
+          { label: "Tilt-Shift", tag: "technical", desc: "Specialized lens effect making real scenes look like miniature models. Selective blur and shifted focus plane — charming and toy-like." },
+          { label: "Anamorphic Lens", tag: "pro", desc: "Distinctive horizontal lens flares, oval bokeh, and 2.39:1 aspect ratio of cinema anamorphic lenses. The cinematic look." },
+          { label: "Night Vision / Thermal", tag: "technical", desc: "Green-cast image intensifier look or false-color thermal palette. Surveillance aesthetic, military technology visual language." },
+        ]
+      },
+      {
+        id: "format", label: "Format & Dimensions", icon: "📐",
+        desc: "Aspect ratios and dimension directives for different use cases",
+        options: [
+          { label: "Square (1:1)", tag: "minimal", desc: "Perfect for Instagram posts, profile pictures, and digital avatars. Equal width and height give balanced, centered compositions." },
+          { label: "Portrait (2:3)", tag: "artistic", desc: "Taller than wide — ideal for phone wallpapers, book covers, fashion photography, and posters. Emphasizes vertical subjects." },
+          { label: "Landscape (16:9)", tag: "technical", desc: "Widescreen format matching monitors and TVs. Best for cinematic scenes, panoramas, desktop wallpapers, and YouTube thumbnails." },
+          { label: "Ultrawide (21:9)", tag: "bold", desc: "Extremely panoramic — cinematic letterbox feel. Used for dramatic landscapes, epic establishing shots, and dual-monitor wallpapers." },
+          { label: "Golden Ratio", tag: "artistic", desc: "The 1:1.618 proportion found throughout nature and classical art. Creates naturally pleasing, harmonious compositions." },
+          { label: "A4 / Print Ready", tag: "pro", desc: "Standard document size optimized for print. Useful for posters, flyers, and illustrations meant to be physically printed." },
+          { label: "Vertical Mobile (9:16)", tag: "technical", desc: "Tall format optimized for Instagram Reels, TikTok, and Stories. Maximizes mobile full-screen real estate." },
+          { label: "4:5 Portrait", tag: "pro", desc: "Slightly cropped portrait favored by Instagram feed optimization. Taller than landscape, not as tall as 2:3 — editorial feel." },
+          { label: "Square Triptych", tag: "artistic", desc: "Three equal square panels displayed side by side. Creates narrative sequence or thematic groupings in a gallery format." },
+          { label: "Panoramic (3:1)", tag: "technical", desc: "Extremely wide format capturing sweeping vistas. Perfect for LinkedIn banners, website headers, and 360° environment concept art." },
+          { label: "Circle / Round", tag: "kawaii", desc: "Circular crop or composition with no corners. Used for profile images, medallions, badges, and decorative roundel illustrations." },
+          { label: "Theatrical (2.35:1)", tag: "pro", desc: "The exact scope ratio of cinema — letterboxed, filmic, epic. The widest standard theatrical format, associated with major productions." },
+          { label: "Vertical Scroll", tag: "technical", desc: "Designed to be viewed by scrolling down — long vertical format for infographics, comics, and webtoon-style narratives." },
+          { label: "Playing Card Format", tag: "artistic", desc: "Standard Tarot or playing card proportions — portrait format with specific border considerations for collectible card game art." },
+          { label: "A3 Poster", tag: "pro", desc: "Large-format print dimensions — designed to be read from a distance with generous margins and hierarchy for typographic elements." },
+          { label: "Business Card", tag: "pro", desc: "Standard 3.5 × 2 inch ratio — compact horizontal format that must communicate identity at extremely small scale." },
+        ]
+      },
+      {
+        id: "subject", label: "Subject Matter", icon: "🌟",
+        desc: "The primary focus or genre of the image — helps anchor the AI to the right visual territory",
+        options: [
+          { label: "Portrait / Character", tag: "artistic", desc: "A person or character as the focal subject. Can range from formal portraiture to character design to expressive figure studies." },
+          { label: "Landscape / Scenery", tag: "artistic", desc: "Natural or urban environments as the primary subject. Mountains, forests, cities, coastlines, deserts — the world as protagonist." },
+          { label: "Architecture", tag: "technical", desc: "Buildings, structures, interiors, and urban spaces. From cathedrals to brutalist towers to cozy cottages." },
+          { label: "Animals & Wildlife", tag: "cozy", desc: "Real or fantastical creatures — domestic pets, exotic wildlife, mythological beasts. Studies in form, movement, and personality." },
+          { label: "Food & Drink", tag: "cozy", desc: "Culinary photography: plated dishes, cocktails, market produce, baked goods. Emphasizes texture, color, and appetite appeal." },
+          { label: "Fashion & Clothing", tag: "pro", desc: "Editorial garments, accessories, and stylized human figures. The visual language of the fashion industry." },
+          { label: "Space & Cosmos", tag: "bold", desc: "Nebulae, galaxies, planets, astronauts, space stations. The infinite scale and alien beauty of the universe." },
+          { label: "Underwater / Ocean", tag: "artistic", desc: "Submerged environments — coral reefs, shipwrecks, sea creatures, the light-filtered blue of deep water." },
+          { label: "Fantasy Creature", tag: "artistic", desc: "Dragons, unicorns, phoenixes, demons, angels — mythological and invented beings with their own logic and presence." },
+          { label: "Still Life / Objects", tag: "artistic", desc: "Arranged objects as subjects — the classic art tradition of flowers, books, instruments, and everyday items with compositional intention." },
+          { label: "Abstract / Pattern", tag: "artistic", desc: "Non-representational imagery — pure color, shape, texture, and movement. The image is the feeling, not the thing." },
+          { label: "Vehicle / Machine", tag: "technical", desc: "Cars, aircraft, spacecraft, robots, machinery. Design visualization and transportation photography." },
+          { label: "Map / Infographic", tag: "technical", desc: "Illustrated cartography and data visualization. Fantasy maps, scientific diagrams, information design." },
+          { label: "Holiday / Seasonal", tag: "kawaii", desc: "Christmas, Halloween, Valentine's Day, festivals. The visual iconography of celebration and seasonal change." },
+          { label: "Wedding / Romance", tag: "cozy", desc: "Couples, floral arrangements, ceremonies, intimate moments. The visual language of love and celebration." },
+          { label: "Children / Family", tag: "kawaii", desc: "Scenes of childhood, family bonds, playful innocence. Warm, safe, joyful — designed to evoke parental feeling." },
+          { label: "Sports & Action", tag: "bold", desc: "Athletes in motion, physical feats, game moments. Energy and peak human physical performance captured at the decisive moment." },
+          { label: "Musical / Concert", tag: "bold", desc: "Musicians, instruments, live performance energy, stage lighting. The visual electricity of music made visible." },
+          { label: "Book / Library", tag: "cozy", desc: "Books, shelves, reading nooks, libraries. The visual culture of reading and intellectual life — warm and inviting." },
+          { label: "Technology / Gadgets", tag: "technical", desc: "Phones, computers, circuits, interfaces. The sleek product photography and sci-fi visualization of technology culture." },
+        ]
+      },
+      {
+        id: "setting", label: "Environment & Setting", icon: "🌍",
+        desc: "The world or environment where the image takes place",
+        options: [
+          { label: "Dense Urban / City", tag: "bold", desc: "Skyscrapers, crowds, traffic, neon signs, concrete. The overwhelming sensory experience of the modern metropolis." },
+          { label: "Ancient Forest", tag: "cozy", desc: "Old-growth trees with cathedral canopies, moss-covered boulders, shafts of light through dense foliage. Primordial and peaceful." },
+          { label: "Desert / Wasteland", tag: "bold", desc: "Endless sand, bleached rock, heat haze, sparse vegetation. The brutal beauty of extreme aridity and open horizon." },
+          { label: "Mountain Summit", tag: "bold", desc: "Panoramic views from high altitude — rocky peaks, distant ranges, clouds below, thin clean air. Epic vertical perspective." },
+          { label: "Arctic / Frozen", tag: "minimal", desc: "Ice fields, glaciers, polar bears, aurora skies. The extreme monochrome palette of the far north — cold, vast, and silent." },
+          { label: "Tropical Paradise", tag: "kawaii", desc: "Turquoise water, white sand, palm trees, vibrant fish. The maximum saturation of tropical ecosystems." },
+          { label: "Underwater / Deep Sea", tag: "artistic", desc: "Bioluminescent creatures, pressure darkness, strange beauty of the abyss. Light barely reaches here — mysterious and alien." },
+          { label: "Space Station / Orbit", tag: "technical", desc: "Floating habitats, Earth curvature below, the profound silence of low Earth orbit. Zero-gravity daily life and infinite horizon." },
+          { label: "Medieval Castle / Village", tag: "artistic", desc: "Stone battlements, cobbled streets, blacksmiths, taverns, market squares. The physical world of fantasy Europe." },
+          { label: "Futuristic City", tag: "bold", desc: "Mega-structures, flying vehicles, holographic displays, elevated walkways. Extrapolated urbanism of centuries ahead." },
+          { label: "Submarine / Cave", tag: "bold", desc: "Enclosed underground or underwater environments with dramatic spelunking light. Claustrophobic and mysterious." },
+          { label: "Countryside / Farm", tag: "cozy", desc: "Rolling fields, farmhouses, animals grazing, hedgerows. The unhurried pace and honest beauty of rural agricultural life." },
+          { label: "Library / Study", tag: "cozy", desc: "Towering bookshelves, reading lamps, leather armchairs, antique globes. The warm intellectual sanctuary of bibliophile spaces." },
+          { label: "Abandoned Building", tag: "bold", desc: "Decaying structure reclaimed by nature and time — peeling paint, broken windows, ivy-covered walls. Urban exploration aesthetic." },
+          { label: "Floating Islands", tag: "artistic", desc: "Landmasses suspended in air with waterfalls trailing below. Fantasy world-building taken vertical — sky archipelagos." },
+          { label: "Volcanic / Lava", tag: "bold", desc: "Active eruption, lava flows, sulfurous vents, obsidian landscapes. The raw creative destruction of geological forces." },
+          { label: "Enchanted Garden", tag: "kawaii", desc: "Magical flora, glowing flowers, hidden paths, impossible creatures tending impossible plants. Fairy tale horticulture." },
+          { label: "Japanese Temple", tag: "artistic", desc: "Torii gates, koi ponds, stone lanterns, cherry blossoms. The refined spatial language of Shinto and Buddhist sacred architecture." },
+          { label: "Cyberpunk Alley", tag: "bold", desc: "Narrow rain-soaked backstreet lit by neon signage, steam vents, forgotten corners of a hyper-capitalist future city." },
+          { label: "Cottage / Cabin", tag: "cozy", desc: "Small, self-contained, smoke from the chimney, garden at the door. The fantasy of simple, contained domestic life in nature." },
+        ]
+      },
+      {
+        id: "camera", label: "Camera & Lens", icon: "📷",
+        desc: "Specify photographic equipment to control focal length, depth, and optical character",
+        options: [
+          { label: "50mm Prime Lens", tag: "technical", desc: "The 'normal' lens mimicking human eye perspective. Flattering for portraits, natural for street photography. No distortion." },
+          { label: "85mm Portrait Lens", tag: "pro", desc: "Classic portrait focal length with beautiful background compression and flattering subject rendering. Slightly telephoto perspective." },
+          { label: "24mm Wide Angle", tag: "technical", desc: "Slight wide-angle with some environmental context. Favorite of photojournalists — captures subject AND situation." },
+          { label: "14mm Ultra Wide", tag: "bold", desc: "Dramatic perspective distortion — exaggerates scale, curves horizons slightly, fits enormous environments into the frame." },
+          { label: "400mm Telephoto", tag: "technical", desc: "Extreme reach compressing perspective dramatically. Wildlife, sports, paparazzi distance. Background becomes a soft blur wall." },
+          { label: "Macro (1:1)", tag: "technical", desc: "True macro for life-size or larger than life subjects. Reveals invisible detail in insects, flowers, circuits, droplets." },
+          { label: "Fisheye (180°)", tag: "bold", desc: "Extreme spherical distortion covering full 180° field of view. Curved horizons, dramatic warping. Skateboarding, underground spaces." },
+          { label: "Medium Format Camera", tag: "pro", desc: "Larger sensor than 35mm — Hasselblad, Fuji GFX quality. Distinctive tonal gradations, incredible detail, 'look' of fashion photography." },
+          { label: "Large Format / 4x5", tag: "pro", desc: "Sheet film camera producing extraordinary resolution and subtle depth of field. The look of Ansel Adams and studio masters." },
+          { label: "Vintage / Film Camera", tag: "retro", desc: "Shot on film with a vintage SLR or rangefinder — halation, color cast, slight soft focus, organic grain. Analog soul." },
+          { label: "Disposable / Lo-Fi", tag: "retro", desc: "Cheap plastic lens, flash artifacts, washed exposure, vignette. The aesthetic of drugstore party photography and found memories." },
+          { label: "Drone Camera", tag: "technical", desc: "Aerial perspective from a DJI-style drone — high, flat, with the characteristic clean sharpness of modern drone sensors." },
+          { label: "Security / CCTV", tag: "bold", desc: "Wide-angle, grainy, low-contrast, timestamp overlay. The paranoid aesthetic of surveillance footage — unseen watching." },
+          { label: "GoPro / Action Cam", tag: "bold", desc: "Ultra-wide, slightly fisheye, mounted perspective. Immersive first-person or extreme sport point-of-view." },
+          { label: "Pinhole Camera", tag: "artistic", desc: "Extremely long exposure, soft across the entire frame, no lens — infinite depth of field, ghostly motion blur, minimal light." },
+          { label: "Anamorphic Cinema", tag: "pro", desc: "Widescreen cinema lenses with horizontal lens flares, oval bokeh, and subtle barrel distortion. The grammar of film." },
+        ]
+      },
+      {
+        id: "era", label: "Time Period / Era", icon: "🕰",
+        desc: "Set the historical, contemporary, or futuristic time frame of the image",
+        options: [
+          { label: "Ancient / Prehistoric", tag: "artistic", desc: "Cave paintings, stone tools, mammoths, hunter-gatherers. The deep past before civilization — raw and elemental." },
+          { label: "Ancient Egypt", tag: "artistic", desc: "Pharaohs, pyramids, hieroglyphs, golden sands, the Nile. 3000+ years of one of history's most visually distinctive cultures." },
+          { label: "Classical Greece / Rome", tag: "artistic", desc: "Marble columns, toga'd senators, gladiators, Olympian gods, symposia. The visual vocabulary of Western civilization's origins." },
+          { label: "Medieval (500–1400)", tag: "artistic", desc: "Knights, castles, monks, plague, Gothic architecture. The long millennium between Rome's fall and the Renaissance." },
+          { label: "Renaissance (1400–1600)", tag: "artistic", desc: "Classical revival, perspective mastery, humanism, Da Vinci-era art and science. Rich, detailed, idealized human forms." },
+          { label: "Victorian Era (1837–1901)", tag: "retro", desc: "Industrial revolution, elaborate fashion, gas lamps, empire building, Sherlock Holmes London. Ornate and moralizing." },
+          { label: "1920s Art Deco", tag: "retro", desc: "Jazz Age glamour — flapper dresses, speakeasies, geometric luxury, the first electric city nights." },
+          { label: "1950s Americana", tag: "retro", desc: "Post-war optimism, diners, chrome cars, white picket fences, early television, suburban dreams." },
+          { label: "1960s Psychedelic", tag: "retro", desc: "Counterculture explosion — tie-dye, protest, moon landing, Woodstock, The Beatles, vivid poster art." },
+          { label: "1970s Cinematic", tag: "retro", desc: "New Hollywood grittiness, warm film stocks, flare-heavy lenses, analog warmth. Scorsese and Kubrick's decade." },
+          { label: "1980s Synthwave", tag: "retro", desc: "Neon grids, arcade games, VHS tapes, shoulder pads. The maximalist decade of Reagan, MTV, and early computing." },
+          { label: "1990s Grunge / Digital", tag: "retro", desc: "Flannel, early web, CD-ROM, lo-fi photography, zine culture, the birth of the internet age." },
+          { label: "Early 2000s Y2K", tag: "retro", desc: "Chrome aesthetics, bubbly UI, frosted glass, translucent plastics, the peak of early digital optimism." },
+          { label: "Near Future (2030–2050)", tag: "bold", desc: "Slightly extrapolated from today — autonomous vehicles, vertical farms, AR overlays, climate adaptation architecture." },
+          { label: "Far Future (2100+)", tag: "bold", desc: "Civilization transformed beyond recognition — megastructures, genetic modification, post-scarcity abundance or catastrophic decline." },
+          { label: "Post-Apocalyptic", tag: "bold", desc: "After civilization falls — ruins, survivors, resource scarcity, nature reclaiming cities. Grim but resilient human future." },
+          { label: "Alternate History", tag: "artistic", desc: "What if Rome never fell? What if the Nazis won? Counterfactual timelines with their own distinct visual languages." },
+          { label: "Timeless / Undefined", tag: "minimal", desc: "No specific era — universal and mythic. Transcends historical period to focus on eternal themes and archetypal imagery." },
+        ]
+      },
+    ],
+    examples: [
+      {
+        tab: "Photorealistic", title: "Golden Hour Portrait",
+        prompt: "A photorealistic portrait of a young woman with wind-blown auburn hair, shot at golden hour, studio-quality rim lighting, soft bokeh background of autumn forest, rule of thirds composition, 8K, hyperdetailed skin texture, cinematic color grading, award-winning photography",
+        explain: "Combines style (photorealistic), lighting (golden hour + rim), composition (rule of thirds), quality markers (8K, hyperdetailed), and a clear subject. Each element compounds to produce a highly specific, professional result."
+      },
+      {
+        tab: "Kawaii", title: "Kawaii Café Scene",
+        prompt: "Kawaii anime-style illustration of a tiny cat café with pastel pink walls, sugar-glaze donuts stacked on counters, sleepy tabby kittens in teacups, sparkling lens flares, soft diffused window light, cozy warm atmosphere, trending on ArtStation, 4K",
+        explain: "The kawaii tag + anime style + pastel palette creates a consistent aesthetic. Subject (cat café) anchors everything. Quality terms (ArtStation, 4K) raise the output ceiling significantly."
+      },
+      {
+        tab: "Cyberpunk", title: "Rainy Cyberpunk Street",
+        prompt: "Hyper-detailed cyberpunk street scene, neon-drenched rain-soaked alleyway in Neo-Tokyo 2087, holographic advertisements in Japanese, figure in reflective trench coat from behind, Blade Runner aesthetic, dramatic shadows, complementary neon orange and cyan, Unreal Engine 5 render, worm's eye view",
+        explain: "Temporal setting (2087), cultural anchor (Neo-Tokyo, Japanese), specific cinematic reference (Blade Runner), and viewing angle (worm's eye) all work together to produce something unmistakably cyberpunk."
+      },
+      {
+        tab: "Surrealist", title: "Melting Clockwork Dream",
+        prompt: "Surrealist oil painting in the style of Salvador Dalí — vast burnt-orange desert landscape under a bruised purple sky, melting golden pocket watches draped over gnarled leafless trees, a lone figure in a bowler hat walks away into infinite distance, dramatic shadows, melancholic atmosphere, museum quality",
+        explain: "Artist reference sets the visual DNA immediately. Specific surrealist symbols (melting clocks, bowler hat) signal iconographic fluency. Color palette descriptor (burnt-orange, bruised purple) ensures cohesion."
+      },
+      {
+        tab: "Concept Art", title: "Ancient Dragon Citadel",
+        prompt: "Epic fantasy concept art of a dragon perched atop a crumbling obsidian citadel at the edge of the world, dramatic backlit silhouette against stormy crimson clouds, wide establishing shot showing the impossible scale of the dragon vs the fortress ruins below, dark moody color palette, trending on ArtStation, cinematic composition, Unreal Engine 5",
+        explain: "Scale contrast (dragon vs fortress) is the conceptual anchor. Specific architectural material (obsidian) and color palette (crimson/dark moody) are precise enough to guide the AI clearly."
+      },
+      {
+        tab: "Vaporwave", title: "Neon Grid Nostalgia",
+        prompt: "Vaporwave digital art — infinite purple and pink retrowave grid floor perspective, marble Greek busts scattered like islands, floating palm trees in magenta sunsets, VHS scan lines overlay, glitch text artifacts reading '1987', centered symmetry, neon acid color palette, 4K pixel-perfect render",
+        explain: "Specific cultural artifacts (Greek busts, VHS lines) define the sub-genre. The '1987' text anchor adds narrative. Grid + centered symmetry locks the composition into the vaporwave language perfectly."
+      },
+      {
+        tab: "Minimalist", title: "Zen Sand Garden",
+        prompt: "Minimalist photograph of a Japanese zen garden at dawn, perfectly raked silver sand with circular ripples around a single moss-covered granite stone, cool minimalist color palette of gray and sage, symmetrical composition, bird's eye view, soft diffused morning light, no watermark, 8K ultra resolution",
+        explain: "The extreme economy of the scene (one stone) IS the point. Bird's eye view turns the raked sand into a graphic pattern. Every descriptor reinforces the zen philosophy of the image."
+      },
+      {
+        tab: "Storybook", title: "Enchanted Mushroom Village",
+        prompt: "Studio Ghibli-inspired watercolor illustration of a whimsical mushroom village at twilight, tiny glowing windows, fireflies drifting through giant fern fronds, a small fox with a lantern walking the cobblestone path, soft warm color palette, cozy atmosphere, bioluminescent accents, hyperdetailed foliage",
+        explain: "Studio Ghibli reference does enormous lifting here — it implies the entire visual grammar. The fox with a lantern is a specific, poetic story detail. Bioluminescent + cozy creates the magical-but-intimate tension the studio is known for."
+      },
+      {
+        tab: "Dark", title: "Gothic Cathedral Storm",
+        prompt: "Dramatic dark fantasy oil painting of a gothic cathedral rising from black storm clouds, lightning strikes illuminating the stained glass rose window from within, silhouettes of gargoyles on the flying buttresses, shot from worm's eye view to emphasize impossible height, Dutch angle, dark moody desaturated palette with isolated electric blue lightning, film grain, cinematic",
+        explain: "Architectural specificity (flying buttresses, rose window) grounds the fantasy in real gothic vocabulary. The Dutch angle adds instability. The isolated blue in a desaturated palette creates visual hierarchy naturally."
+      },
+      {
+        tab: "Portrait", title: "Elven Forest Queen",
+        prompt: "Hyperdetailed portrait closeup of an elven queen in emerald armor, skin like polished moonstone, eyes glowing silver, backlit by shafts of bioluminescent light through an ancient forest canopy, face tilted slightly upward conveying serene authority, award-winning digital art, Unreal Engine 5 quality, complementary green and silver color palette, 8K",
+        explain: "Material descriptors (moonstone, emerald, bioluminescent) give the AI concrete anchors. The subtle pose detail (tilted slightly upward) defines the emotional register without over-prescribing. Color palette ties the character to her environment."
+      },
+      {
+        tab: "Abstract", title: "Primordial Ocean Storm",
+        prompt: "Abstract expressionist painting of a primordial ocean in the midst of creation — vast churning waves of dark indigo and viridian crashing against each other, thick impasto brushstrokes suggesting both chaos and pattern, electric white foam catching dramatic light from an unseen storm, melancholic yet epic atmosphere, museum-quality oil on canvas, no figures",
+        explain: "Abstract works need permission — 'no figures' liberates the AI from its tendency to add humans. Impasto brushstroke reference gives texture direction. The 'primordial' time setting lets scale be unimaginably vast."
+      },
+      {
+        tab: "Retro", title: "1970s Sci-Fi Paperback",
+        prompt: "Retro science fiction book cover illustration in 1970s paperback style — chrome robot on a red sand alien planet, twin suns setting on the horizon, rocket ship in the background, bold sans-serif title space at the top, warm vintage faded color palette with an aged yellow cast, halftone dot texture overlay, flat design with subtle cel shading",
+        explain: "Pointing to a specific decade (1970s paperback) is a highly efficient aesthetic anchor — the AI knows the exact visual grammar. Including functional space (title area) shows awareness of intended use."
+      },
+      {
+        tab: "Food", title: "Luxe Chocolate Composition",
+        prompt: "Hyperdetailed commercial food photography of artisan dark chocolate truffles dusted with gold flakes, arranged in a black slate dish, single cherry with glistening droplets as garnish, bird's eye view, studio three-point lighting, bokeh background of blurred roses, ultra-HD, complementary gold and deep brown earth tones, award-winning food styling",
+        explain: "Food photography has its own vocabulary — 'food styling' is a real profession the AI recognizes. Specific garnish details (cherry with droplets) trigger the fine-detail mode. Bird's eye is the hero angle for food."
+      },
+    ]
+  },
+  text: {
+    categories: [
+      {
+        id: "format", label: "Output Format", icon: "📄",
+        desc: "Defines the structural shape of the generated text content",
+        options: [
+          { label: "Essay", tag: "pro", desc: "Structured argumentative or expository writing with an intro, body paragraphs, and conclusion. Flows continuously in prose without headers." },
+          { label: "Bullet-Point List", tag: "minimal", desc: "Distills key ideas into scannable short lines. Ideal for instructions, comparisons, and summaries that need quick digestion." },
+          { label: "Narrative Story", tag: "artistic", desc: "Continuous fictional prose with scene-setting, character development, and plot arc. Prioritizes immersion and emotional engagement." },
+          { label: "Step-by-Step Guide", tag: "technical", desc: "Numbered instructional sequence where order matters. Each step is actionable and leads logically to the next." },
+          { label: "Email Draft", tag: "pro", desc: "Professional correspondence with subject line, greeting, body, call-to-action, and sign-off. Optimized for clarity and response rates." },
+          { label: "Social Media Post", tag: "bold", desc: "Short, punchy, platform-optimized content. May include hashtags, emojis, or character limits. Designed for engagement and shares." },
+          { label: "Report / Brief", tag: "pro", desc: "Formal document with executive summary, sections with headers, data references, and recommendations. Dense and information-rich." },
+          { label: "Dialogue / Script", tag: "artistic", desc: "Character-driven exchange formatted as a screenplay or play script. Reveals character through spoken voice and subtext." },
+          { label: "Q&A Format", tag: "technical", desc: "Alternating question and answer blocks. Excellent for FAQs, interviews, and educational explainers." },
+          { label: "Tweet Thread", tag: "bold", desc: "Series of connected short posts building an argument or story across numbered tweets. 280 chars each, hooky opener." },
+          { label: "Newsletter", tag: "pro", desc: "Email-delivered publication with a distinctive editorial voice — curated links, original commentary, subscriber-first content." },
+          { label: "Podcast Script", tag: "cozy", desc: "Conversational transcript format for spoken audio — natural speech rhythms, transition cues, no visually-dependent references." },
+          { label: "Press Release", tag: "pro", desc: "Formal journalistic announcement format with boilerplate, quotes from spokespeople, and inverted pyramid structure." },
+          { label: "Landing Page Copy", tag: "bold", desc: "Web sales copy with headline, subheadline, benefit bullets, social proof, and CTA. Every word measured for conversion." },
+          { label: "White Paper", tag: "pro", desc: "Authoritative research-backed document on a specific topic. Longer, deeply sourced, used to establish thought leadership." },
+          { label: "Case Study", tag: "pro", desc: "Structured narrative of a real project: challenge, approach, outcome, lessons. Evidence-based storytelling for business contexts." },
+          { label: "Product Description", tag: "bold", desc: "Short persuasive text that sells a single product — emphasizes benefits over features, triggers desire, overcomes objections." },
+          { label: "Recipe / Instructions", tag: "technical", desc: "Precise procedural format with ingredients/materials list, sequential numbered steps, and expected outcome description." },
+          { label: "Poem / Verse", tag: "artistic", desc: "Structured or free-form literary composition using rhythm, imagery, compression, and resonance. Language distilled to its essence." },
+          { label: "Song Lyrics", tag: "artistic", desc: "Verse-chorus-bridge structure with rhythm, rhyme, and singability. Repeated hooks, emotional arc, singable vowel sounds." },
+          { label: "Cover Letter", tag: "pro", desc: "Professional job application document telling the story behind the resume. Specific, enthusiastic, and tailored to the role." },
+          { label: "Biography / Profile", tag: "pro", desc: "Third-person narrative of a person's life, career, or achievements. Balances facts with narrative momentum and personality." },
+          { label: "Speech / Presentation", tag: "bold", desc: "Spoken-word document with rhetorical devices, audience engagement moments, clear arc, and a memorable closing line." },
+          { label: "FAQ Document", tag: "technical", desc: "Anticipated questions with clear concise answers. Organizes common objections and curiosities into a self-service resource." },
+          { label: "Grant Proposal", tag: "pro", desc: "Formal funding request with project description, budget justification, impact measurement, and organizational credibility." },
+          { label: "Manifesto", tag: "bold", desc: "Declarative statement of beliefs, principles, and intentions. Bold, direct, present tense. Think brand manifestos or political declarations." },
+          { label: "Listicle", tag: "minimal", desc: "Numbered list article — '10 ways to X' format. Scannable, shareable, optimized for internet reading behavior." },
+          { label: "How-To Guide", tag: "technical", desc: "Practical instructional content solving a specific problem. Assumes action, not understanding, is the primary goal." },
+          { label: "Opinion / Op-Ed", tag: "bold", desc: "First-person argumentative writing for a publication. Takes a clear position and defends it with evidence and rhetorical skill." },
+          { label: "Academic Abstract", tag: "technical", desc: "150–300 word condensed summary of research findings, methodology, and conclusions. Dense, jargon-permitted, precisely structured." },
+          { label: "Executive Summary", tag: "pro", desc: "Top-sheet overview of a longer document — busy executives read only this. Conclusions first, evidence compressed." },
+          { label: "User Story / Requirement", tag: "technical", desc: "'As a [user], I want [feature] so that [benefit].' Agile development format for capturing product requirements concisely." },
+          { label: "Role-Play / Character Sheet", tag: "artistic", desc: "In-character writing from a specified persona's perspective. Used in creative writing, game design, and chatbot development." },
+          { label: "Glossary / Dictionary", tag: "technical", desc: "Alphabetical or thematic definitions of terms in a field. Clear, precise, reference-optimized entries." },
+          { label: "Letter to the Editor", tag: "bold", desc: "Brief, pointed response to a published piece. Corrects, challenges, or extends an argument in under 200 words." },
+          { label: "Obituary / Tribute", tag: "artistic", desc: "Respectful memorial writing celebrating a person's life and contributions. Balances grief with celebration and specific memory." },
+          { label: "Travel Guide Entry", tag: "cozy", desc: "Informative and evocative description of a place — practical information wrapped in atmospheric description." },
+          { label: "Job Description", tag: "pro", desc: "Structured talent recruitment document — role overview, responsibilities, requirements, and company culture. Attracts and filters." },
+          { label: "Prompt / Creative Brief", tag: "pro", desc: "Instructions that set another creative agent (human or AI) up for success. Clear constraints, rich context, defined success criteria." },
+        ]
+      },
+      {
+        id: "tone", label: "Tone & Voice", icon: "🎙",
+        desc: "The personality and emotional register projected through the writing",
+        options: [
+          { label: "Professional & Formal", tag: "pro", desc: "Authoritative, precise, third-person where appropriate. Avoids contractions and casual language. Suitable for boardrooms and publications." },
+          { label: "Conversational & Warm", tag: "cozy", desc: "Friendly, first-person, uses contractions and relatable language. Feels like advice from a knowledgeable friend over coffee." },
+          { label: "Witty & Humorous", tag: "bold", desc: "Playful word choices, unexpected analogies, light sarcasm. Makes the reader smile while still delivering substance." },
+          { label: "Authoritative Expert", tag: "technical", desc: "Speaks from a position of deep domain knowledge. Cites reasoning, uses precise vocabulary, minimizes hedging language." },
+          { label: "Empathetic & Supportive", tag: "cozy", desc: "Centers the reader's emotional experience. Validates feelings, uses 'we' framing, avoids judgment. Gentle and encouraging." },
+          { label: "Energetic & Motivating", tag: "bold", desc: "High-energy language, short punchy sentences, calls to action. Inspires forward momentum. Think fitness coach or startup pitch." },
+          { label: "Thoughtful & Nuanced", tag: "artistic", desc: "Explores complexity without oversimplifying. Acknowledges multiple perspectives and resists black-and-white conclusions." },
+          { label: "Kawaii & Playful", tag: "kawaii", desc: "Light, bubbly, joyful — uses playful expressions, maybe some character emojis or exclamations. Delightful and endearing tone." },
+          { label: "Dry & Deadpan", tag: "minimal", desc: "Understated delivery where humor or insight arrives without editorial comment. Trusts the reader to catch the joke." },
+          { label: "Urgent & Persuasive", tag: "bold", desc: "Creates momentum and stakes — the reader feels compelled to act NOW. Used in fundraising, activism, and conversion copy." },
+          { label: "Poetic & Lyrical", tag: "artistic", desc: "Elevated, rhythmic prose with attention to sound and imagery. Even functional content gets an aesthetic dimension." },
+          { label: "Skeptical & Questioning", tag: "technical", desc: "Challenges assumptions, asks 'but is that true?', hedges appropriately. The voice of rigorous intellectual inquiry." },
+          { label: "Nostalgic & Wistful", tag: "retro", desc: "Looks back with gentle longing. Summons specific sensory memories. Tinged with the bittersweet awareness that time passes." },
+          { label: "Shocking & Provocative", tag: "bold", desc: "Deliberately challenges comfortable assumptions. Uses controlled controversy to force a reaction and conversation." },
+          { label: "Gentle & Reassuring", tag: "cozy", desc: "Soft, patient, non-pressuring. Particularly effective for anxiety-adjacent content, health communication, or difficult news." },
+          { label: "Ironic & Satirical", tag: "bold", desc: "Says one thing while meaning another. Uses contradiction, exaggeration, and absurdity to critique. Swift and Colbert mode." },
+          { label: "Inspirational & Visionary", tag: "bold", desc: "Paints a picture of what's possible. Lifts the reader's gaze beyond immediate problems toward a compelling future." },
+          { label: "Academic & Scholarly", tag: "technical", desc: "Peer-reviewed discourse norms — hedged claims, cited sources, methodology transparency, formal passive constructions." },
+          { label: "Direct & No-Nonsense", tag: "minimal", desc: "Gets to the point immediately. No preamble, no throat-clearing, no filler transitions. Respects the reader's time absolutely." },
+          { label: "Mysterious & Intriguing", tag: "artistic", desc: "Withholds information strategically. Raises questions before answering them. Creates reader tension through deliberate ambiguity." },
+          { label: "Vulnerable & Honest", tag: "cozy", desc: "First-person, shares doubts and failures alongside successes. Creates deep reader trust through radical transparency." },
+          { label: "Enthusiastic & Passionate", tag: "bold", desc: "The writer clearly loves this topic. That genuine enthusiasm is contagious — pulls readers into the subject." },
+        ]
+      },
+      {
+        id: "audience", label: "Target Audience", icon: "👥",
+        desc: "Who you're writing for — dramatically changes vocabulary, depth, and assumptions",
+        options: [
+          { label: "Complete Beginner", tag: "cozy", desc: "Zero assumed knowledge. Uses analogies, avoids jargon entirely or defines every term. Prioritizes clarity over completeness." },
+          { label: "Intermediate Learner", tag: "technical", desc: "Has foundational knowledge but isn't an expert. Can handle some terminology if explained. Interested in the 'why' not just the 'what'." },
+          { label: "Domain Expert", tag: "pro", desc: "Peer-to-peer communication between specialists. Uses field-specific vocabulary freely. Gets to substance quickly without hand-holding." },
+          { label: "General Public", tag: "minimal", desc: "Mixed knowledge levels. Accessible without being condescending. Written for an educated non-specialist — think quality journalism." },
+          { label: "Children (8–12)", tag: "kawaii", desc: "Simple words, relatable examples, short sentences, enthusiasm. Encourages curiosity. Never talks down." },
+          { label: "Executives / Decision-Makers", tag: "pro", desc: "Time-poor readers who need the bottom line first. Lead with recommendations, support with evidence, be ruthlessly concise." },
+          { label: "Creative Professionals", tag: "artistic", desc: "Appreciates craft references, conceptual language, aesthetic sensibility. Assumes visual and cultural literacy." },
+          { label: "Teenagers (13–17)", tag: "bold", desc: "Respects intelligence but acknowledges contemporary cultural touchstones. Direct, slightly informal, no condescension." },
+          { label: "Young Adults (18–25)", tag: "bold", desc: "Digital natives with short patience for jargon but high tolerance for complexity if presented interestingly. Values authenticity." },
+          { label: "Parents / Caregivers", tag: "cozy", desc: "Time-limited, emotionally invested, pragmatic. Connect through their role, not their personal identity." },
+          { label: "Investors / Funders", tag: "pro", desc: "Risk-aware, returns-focused, evidence-hungry. Lead with the opportunity, validate with traction, be precise about ask." },
+          { label: "Job Seekers", tag: "cozy", desc: "Anxious but hopeful. Needs practical, actionable guidance. Reassurance matters as much as information." },
+          { label: "Small Business Owners", tag: "cozy", desc: "Pragmatic, resource-constrained, skeptical of buzzwords. Wants real-world applicability immediately." },
+          { label: "Healthcare Professionals", tag: "technical", desc: "Clinical vocabulary accepted, protocol-aware, evidence-based. Accuracy and source citation are non-negotiable." },
+          { label: "Tech / Developer Community", tag: "technical", desc: "Appreciates precision, code examples, edge-case thinking, and acknowledges when uncertainty exists. Hates hand-waving." },
+          { label: "Global / Multilingual Audience", tag: "minimal", desc: "Avoids idioms, cultural references, and complex sentence constructions that don't translate. Maximally clear and universal." },
+          { label: "Skeptical / Critical Reader", tag: "technical", desc: "Interrogates every claim. Every assertion needs backing. Avoids weasel words. Anticipates counterarguments preemptively." },
+          { label: "Emotionally Affected Audience", tag: "cozy", desc: "Readers who have personal stakes in the topic — grief, illness, major decisions. Tone must balance honesty with care." },
+          { label: "Academic / Research Audience", tag: "technical", desc: "Peer community that values methodological rigor, literature review, citation, and contribution to existing knowledge." },
+          { label: "Nonprofit / Mission-Driven", tag: "cozy", desc: "Values-aligned readers motivated by impact, not profit. Language of mission, community, and shared purpose resonates." },
+        ]
+      },
+      {
+        id: "length", label: "Length & Depth", icon: "📏",
+        desc: "Controls verbosity and how comprehensively each idea is explored",
+        options: [
+          { label: "Ultra-Short (50–100 words)", tag: "minimal", desc: "Micro-content. Every word earns its place. Best for summaries, captions, hooks, and social posts where brevity is the message." },
+          { label: "Short (150–300 words)", tag: "minimal", desc: "Covers one focused idea thoroughly. Enough for a blog intro, a product description, or a quick explainer." },
+          { label: "Medium (500–800 words)", tag: "technical", desc: "Standard article or blog post length. Allows proper intro, 2–3 developed points, and a conclusion with room to breathe." },
+          { label: "Long-Form (1500+ words)", tag: "pro", desc: "Deep dive content. Allows comprehensive coverage, counterarguments, examples, and nuance. For reports, pillar articles, white papers." },
+          { label: "Exhaustive / No Limit", tag: "pro", desc: "Instructs the AI to cover the topic completely without artificial length constraints. Use with specific outline for best results." },
+          { label: "Concise & Dense", tag: "technical", desc: "Maximum information per word. Think academic abstract or Wikipedia lead. No filler, no transitions for their own sake." },
+          { label: "Tweet Length (280 chars)", tag: "bold", desc: "Hard character limit of a single tweet. Forces absolute compression — every character costs. The haiku of digital writing." },
+          { label: "Paragraph (100–150 words)", tag: "minimal", desc: "One perfectly constructed paragraph covering exactly one idea. Good for product descriptions, standfirsts, and captions." },
+          { label: "Blog Post (800–1200 words)", tag: "technical", desc: "Standard digital article length optimized for web reading. Enough depth for SEO value without losing mobile readers." },
+          { label: "Pillar Article (2500+ words)", tag: "pro", desc: "Comprehensive cornerstone content. Covers a topic so thoroughly it becomes the definitive resource on the subject." },
+          { label: "Book Chapter (3000–5000 words)", tag: "pro", desc: "Standalone chapter-length content with its own arc. Deep exploration that earns the reader's sustained attention." },
+          { label: "Micro-Copy (under 10 words)", tag: "minimal", desc: "The science of button labels, error messages, and tooltips. Six words that feel inevitable and obvious." },
+          { label: "Two-Pager (400–500 words)", tag: "pro", desc: "The executive two-pager. Dense but readable. Designed to be skimmed in 90 seconds by a very busy person." },
+        ]
+      },
+      {
+        id: "structure", label: "Structure & Style", icon: "🏗",
+        desc: "Architectural choices about how ideas flow and connect within the text",
+        options: [
+          { label: "Linear / Sequential", tag: "technical", desc: "A to B to C — ideas build on each other in strict order. No digressions. Good for tutorials, arguments, and timelines." },
+          { label: "Problem → Solution", tag: "pro", desc: "Opens with a pain point, explores its depth, then offers resolution. Naturally persuasive structure used in copywriting and consulting." },
+          { label: "Narrative Arc", tag: "artistic", desc: "Story structure: setup, rising tension, climax, resolution. Keeps readers engaged by creating emotional investment in the outcome." },
+          { label: "In Medias Res", tag: "bold", desc: "Begin in the middle of the action, then reveal context retroactively. Immediately grabs attention by starting at the interesting part." },
+          { label: "Pyramid (Conclusion First)", tag: "pro", desc: "Lead with the key takeaway, then provide supporting evidence in descending importance. Standard in journalism and consulting decks." },
+          { label: "Conversational Tangents", tag: "cozy", desc: "Allow the writing to follow associative thought, exploring interesting digressions before returning to the main thread. Warm and exploratory." },
+          { label: "Compare & Contrast", tag: "technical", desc: "Places two or more subjects side by side to illuminate differences and similarities. Structured, analytical, and objective." },
+          { label: "AIDA (Attention → Interest → Desire → Action)", tag: "bold", desc: "Classic marketing framework — grab attention, build interest, create desire, trigger action. Tested in advertising for 100+ years." },
+          { label: "Five Ws (Who/What/When/Where/Why)", tag: "technical", desc: "Journalism's foundational structure ensuring all essential information is covered in priority order." },
+          { label: "Thesis → Antithesis → Synthesis", tag: "pro", desc: "Hegelian dialectic — present a claim, steelman the opposition, then arrive at a more sophisticated reconciled position." },
+          { label: "Hero's Journey", tag: "artistic", desc: "Campbell's monomyth: ordinary world, call to adventure, trials, transformation, return. Works in fiction and brand storytelling alike." },
+          { label: "Case Study Format", tag: "pro", desc: "Challenge → Approach → Result → Lesson. Evidence-based narrative that proves capability and builds trust." },
+          { label: "Inverted Pyramid", tag: "technical", desc: "Most important information first, descending to detail and background. Newspaper journalism standard — survives any edit." },
+          { label: "Listicle Structure", tag: "minimal", desc: "Content organized as a numbered or bulleted list. Each item is self-contained. Readers can dip in and out non-linearly." },
+          { label: "Framework / Model", tag: "pro", desc: "Proprietary or named model organizing ideas into memorable categories. Creates intellectual property out of organizational thinking." },
+          { label: "Before & After", tag: "bold", desc: "Contrast the state before and after an action, change, or product. The simplest transformation narrative — immediately compelling." },
+          { label: "Three-Act Structure", tag: "artistic", desc: "Setup, confrontation, resolution. The universal dramatic structure underlying almost every successful story ever told." },
+          { label: "FAQ as Story", tag: "cozy", desc: "Presents real anticipated questions and answers them narratively rather than bullet-point style. Feels like a genuine conversation." },
+          { label: "Modular / Atomic", tag: "technical", desc: "Each section is self-contained and can stand alone. Readers can consume in any order. Good for documentation and wikis." },
+          { label: "Stream of Consciousness", tag: "artistic", desc: "Unfiltered, associative, inner-voice narrative. No conventional structure — mimics actual thought flow. Literary and experimental." },
+        ]
+      },
+      {
+        id: "persona", label: "Persona / Role", icon: "🎭",
+        desc: "Instruct the AI to adopt a specific identity or professional perspective",
+        options: [
+          { label: "As an Expert Consultant", tag: "pro", desc: "Speaks with authority of a paid professional. Gives direct recommendations rather than hedged possibilities. No disclaimer fatigue." },
+          { label: "As a Storyteller", tag: "artistic", desc: "Prioritizes narrative craft — scene-setting, tension, character voice. Even factual content gets story structure applied." },
+          { label: "As a Socratic Teacher", tag: "technical", desc: "Uses questions to lead the reader to discover answers themselves. Builds understanding through guided inquiry rather than direct instruction." },
+          { label: "As a Devil's Advocate", tag: "bold", desc: "Intentionally argues the opposing view. Useful for stress-testing arguments, exploring steelmanned positions, or debate prep." },
+          { label: "As a Friendly Mentor", tag: "cozy", desc: "Warmly shares earned wisdom, acknowledges the reader's challenges, celebrates small wins. Feels like advice from a trusted senior." },
+          { label: "As a Data Journalist", tag: "technical", desc: "Grounds every claim in evidence. Cites sources, flags uncertainty, presents numbers with context. Rigorous and trustworthy." },
+          { label: "As a Poet", tag: "artistic", desc: "Approaches even prose with attention to rhythm, imagery, and resonance. Language itself becomes part of the meaning." },
+          { label: "As a Sales Person", tag: "bold", desc: "Outcome-focused, objection-handling, benefit-emphasizing. Knows the close and works toward it throughout." },
+          { label: "As an Investigative Reporter", tag: "bold", desc: "Follows the evidence, asks uncomfortable questions, refuses to accept official statements at face value. Truth-seeking mode." },
+          { label: "As a Therapist / Coach", tag: "cozy", desc: "Non-judgmental, reflective listening, helps the reader access their own thinking. Asks rather than tells." },
+          { label: "As a Scientist", tag: "technical", desc: "Hypothesis-driven, evidence-based, acknowledges limitations, replicable. Precision and intellectual honesty above all." },
+          { label: "As a Brand Voice", tag: "pro", desc: "Adopts a specific company's established tone, vocabulary, and values. Consistent with existing brand identity documents." },
+          { label: "As a Critic / Reviewer", tag: "artistic", desc: "Evaluates with clear criteria, defends judgments, balances appreciation and critique. Takes a position and defends it." },
+          { label: "As a First-Person Character", tag: "artistic", desc: "Speaks as a specific fictional or historical figure with their voice, knowledge limits, and worldview." },
+          { label: "As a Community Member", tag: "cozy", desc: "Peer-to-peer insider voice. Speaks as one of 'us', not from above. Knows the culture, the memes, the unwritten rules." },
+          { label: "As a Philosopher", tag: "artistic", desc: "Examines foundational assumptions, explores edge cases, refuses to accept common sense at face value. Systematic inquiry." },
+          { label: "As a Lawyer / Policy Analyst", tag: "pro", desc: "Precise, hedged, structured argumentation. Anticipates counterarguments, cites precedent, defines terms explicitly." },
+          { label: "As a Historian", tag: "technical", desc: "Contextualizes in time, acknowledges historiographical debate, uses primary sources, resists presentism." },
+          { label: "As an Optimist / Futurist", tag: "bold", desc: "Leans into possibility and positive scenarios. Useful for vision documents, innovation briefs, and aspirational content." },
+          { label: "As a Pessimist / Risk Analyst", tag: "technical", desc: "Stress-tests scenarios, identifies failure modes, assumes things will go wrong. Useful for risk assessment and contingency planning." },
+        ]
+      },
+      {
+        id: "constraints", label: "Constraints & Rules", icon: "🔒",
+        desc: "Explicit rules to give the AI to shape what it includes or avoids",
+        options: [
+          { label: "No Jargon", tag: "minimal", desc: "Forces plain language — every technical term must be translated into everyday words. Maximizes accessibility and readability." },
+          { label: "Cite Sources / Evidence", tag: "pro", desc: "Grounds claims in references, data, or named authorities. Increases credibility and allows the reader to verify independently." },
+          { label: "Include Real Examples", tag: "technical", desc: "Anchors abstract ideas in concrete, specific cases. Makes concepts tangible and easier to remember and apply." },
+          { label: "No Repetition", tag: "minimal", desc: "Every sentence must add new information. Eliminates the padding and circular summary-writing that AI tends to default to." },
+          { label: "Strong Opener (Hook)", tag: "bold", desc: "First sentence must earn the reader's attention — a striking statistic, counterintuitive claim, or vivid scene." },
+          { label: "End with Call-to-Action", tag: "pro", desc: "Closes with a specific, clear directive for what the reader should do next. Essential for marketing and instructional content." },
+          { label: "Use Active Voice Only", tag: "technical", desc: "Eliminates passive constructions that soften agency and muddy clarity. 'The team built the feature' not 'the feature was built'." },
+          { label: "Avoid Clichés", tag: "artistic", desc: "Instructs the AI to avoid stock phrases, overused metaphors, and predictable expressions. Forces fresher, more original language." },
+          { label: "Exact Word Count", tag: "technical", desc: "Specifies a precise number of words. Forces the AI to edit and compress — the discipline of constraint produces better writing." },
+          { label: "No Bullet Points", tag: "artistic", desc: "All information must be delivered in flowing prose. Prevents lazy list-making and forces actual connecting argumentation." },
+          { label: "Use Specific Numbers", tag: "technical", desc: "Replace vague quantifiers ('many', 'some', 'often') with concrete figures wherever possible. Precision earns trust." },
+          { label: "Show Don't Tell", tag: "artistic", desc: "Demonstrate qualities through action and detail rather than assertion. 'He trembled' not 'He was afraid.'" },
+          { label: "No Hedging Language", tag: "bold", desc: "Ban 'perhaps', 'might', 'could potentially'. Forces decisive, confident prose that takes positions and owns them." },
+          { label: "Banned Words List", tag: "minimal", desc: "Specific words or phrases forbidden from the output. Forces vocabulary diversity and prevents predictable AI defaults." },
+          { label: "Use Analogies", tag: "cozy", desc: "Every complex concept must be paired with a familiar analogy. Dramatically improves comprehension and memorability." },
+          { label: "Address Objections", tag: "pro", desc: "Proactively names and refutes the 2–3 most likely counterarguments. Makes the piece more persuasive and intellectually honest." },
+          { label: "Consistent Metaphor", tag: "artistic", desc: "Extend one central metaphor throughout the entire piece. Creates unity, deepens meaning, shows intentional craft." },
+          { label: "Sentence Variety", tag: "artistic", desc: "Mix short punchy sentences with longer complex ones. Prevents monotonous rhythm and keeps reading feeling dynamic." },
+          { label: "Include Counterarguments", tag: "technical", desc: "Steelman the opposing view before refuting it. Demonstrates intellectual integrity and makes the argument more convincing." },
+          { label: "Data-Backed Claims Only", tag: "technical", desc: "Every assertion must be supported by statistics, studies, or named expert opinion. No unsupported claims allowed." },
+          { label: "Second Person (You)", tag: "cozy", desc: "Address the reader directly as 'you'. Creates intimacy, makes content feel personally relevant, drives engagement." },
+          { label: "Third Person Omniscient", tag: "pro", desc: "Objective authorial perspective with full knowledge of all characters and events. Classic narrative authority." },
+          { label: "No Adverbs", tag: "artistic", desc: "Ban adverbs — forces stronger verb choices. 'He sprinted' instead of 'He ran quickly'. Hemingway-style economy." },
+          { label: "No Passive Voice", tag: "technical", desc: "All verbs must name their actor. Eliminates responsibility-avoiding constructions and sharpens narrative agency." },
+          { label: "Vary Paragraph Length", tag: "artistic", desc: "Mix very short (1–2 sentence) paragraphs with longer developed ones. Controls pacing and reader breathing room." },
+          { label: "Sensory Details", tag: "artistic", desc: "Include specific sensory observations — sounds, smells, textures, temperatures. Grounds abstract content in physical reality." },
+          { label: "Socratic Questions", tag: "technical", desc: "Embed 2–3 questions within the piece that invite the reader to think rather than just consume. Creates active engagement." },
+          { label: "Concrete Verbs", tag: "artistic", desc: "Favor precise, specific action verbs over weak generic ones. 'He slammed the door' not 'He closed the door angrily'." },
+        ]
+      },
+      {
+        id: "domain", label: "Subject Domain", icon: "🎓",
+        desc: "The field or industry the content should be grounded in",
+        options: [
+          { label: "Technology & AI", tag: "technical", desc: "Software, artificial intelligence, startups, product development. Fast-moving, jargon-heavy, future-oriented domain." },
+          { label: "Business & Strategy", tag: "pro", desc: "Corporate strategy, management, operations, growth. The language of boardrooms, consultancies, and business schools." },
+          { label: "Science & Research", tag: "technical", desc: "Empirical inquiry, academic publishing, methodology, data. Precision and epistemic humility are domain norms." },
+          { label: "Health & Medicine", tag: "technical", desc: "Clinical, public health, wellness, pharmaceutical. Evidence-based, safety-conscious, and ethically constrained domain." },
+          { label: "Finance & Economics", tag: "pro", desc: "Markets, investing, macroeconomics, personal finance. Quantitative, risk-aware, compliance-sensitive." },
+          { label: "Marketing & Advertising", tag: "bold", desc: "Brand building, campaign strategy, consumer behavior, conversion optimization. Persuasion-focused and metrics-driven." },
+          { label: "Education & Learning", tag: "cozy", desc: "Pedagogy, curriculum design, student experience, institutional dynamics. Human development at the core." },
+          { label: "Philosophy & Ethics", tag: "artistic", desc: "Foundational inquiry into truth, value, and right action. Precision of argument, comfort with uncertainty." },
+          { label: "History & Culture", tag: "artistic", desc: "Temporal context, primary sources, historiographical debate, cultural meaning-making over time." },
+          { label: "Environment & Climate", tag: "cozy", desc: "Ecology, sustainability, climate science, conservation. Urgency plus complexity — science meets policy meets culture." },
+          { label: "Law & Policy", tag: "pro", desc: "Regulatory frameworks, precedent, compliance, governance. Precision and hedging are virtues, not vices." },
+          { label: "Psychology & Behavior", tag: "cozy", desc: "Human motivation, cognitive biases, mental health, behavioral economics. Evidence-based understanding of how people actually work." },
+          { label: "Art & Creativity", tag: "artistic", desc: "Aesthetic theory, creative process, art history, cultural production. Values craft, originality, and conceptual depth." },
+          { label: "Food & Culinary", tag: "cozy", desc: "Gastronomy, recipe development, food culture, agricultural context. Sensory, cultural, and technical dimensions intertwined." },
+          { label: "Travel & Geography", tag: "cozy", desc: "Place-based writing, cultural anthropology, logistics, experiential narrative. Making elsewhere feel present." },
+          { label: "Sports & Athletics", tag: "bold", desc: "Athletic performance, team dynamics, sports culture, statistics. The human drama of competition." },
+          { label: "Music & Audio", tag: "artistic", desc: "Composition, production, music theory, industry, cultural impact. The domain where mathematics and emotion collide." },
+          { label: "Architecture & Design", tag: "pro", desc: "Built environment, spatial design, visual communication, user experience. Form, function, and meaning in physical space." },
+          { label: "Gaming & Esports", tag: "bold", desc: "Game design, player culture, competitive play, industry dynamics. A medium that is also a community and a sport." },
+          { label: "Parenting & Family", tag: "cozy", desc: "Child development, family dynamics, parenting philosophy, the private emotional life of households." },
+          { label: "Social Justice & Activism", tag: "bold", desc: "Equity, systemic change, community organizing, advocacy. Morally grounded, politically charged, audience-aware." },
+          { label: "Spirituality & Religion", tag: "artistic", desc: "Faith traditions, contemplative practice, meaning-making, sacred texts. Requires cultural sensitivity and genuine respect." },
+          { label: "Real Estate & Property", tag: "pro", desc: "Market dynamics, property valuation, investment strategy, development. Local, cyclical, and deeply asset-specific." },
+          { label: "HR & People Ops", tag: "pro", desc: "Talent management, organizational culture, DEI, employee experience. The human infrastructure of organizations." },
+        ]
+      },
+    ],
+    examples: [
+      {
+        tab: "Persuasive", title: "Climate Tech Investment Pitch",
+        prompt: "Write a 600-word persuasive essay as an expert consultant, aimed at executive decision-makers, using a problem-solution structure. Open with a striking statistic about climate costs. Argue for immediate corporate investment in carbon capture technology. Use the pyramid structure (bottom line first), active voice throughout, cite 2–3 named evidence sources, no jargon, end with a specific call-to-action.",
+        explain: "The persona (consultant), audience (executives), structure (pyramid + bottom line first), and constraint (cite sources + CTA) work together so tightly the AI has almost no room to write a mediocre output."
+      },
+      {
+        tab: "Storytelling", title: "The Last Bookshop",
+        prompt: "Write a 800-word literary short story using narrative arc structure, beginning in medias res — a bookseller locks the door of her shop for the last time. Thoughtful and melancholic tone. Conversational tangents that reveal her history with customers. Third-person limited perspective. No clichés, no adverbs. The final paragraph must circle back to a specific object mentioned in the first paragraph.",
+        explain: "The structural constraint (in medias res + circular return) is a craft technique that forces narrative cohesion. Banning adverbs forces stronger verb choices — a real literary editing technique."
+      },
+      {
+        tab: "Educational", title: "Quantum Computing Explainer",
+        prompt: "Explain quantum computing to a complete beginner in 500 words using a linear sequential structure. Use only everyday analogies — no equations. Include at least 3 concrete real-world examples of current applications. Conversational and warm tone with a strong hook opener. Q&A format for the final section covering 3 most common beginner misconceptions. No repetition.",
+        explain: "The triple constraint (analogies + everyday language + 3 concrete examples) essentially forces the Feynman technique. Q&A at the end proactively handles the reader's next questions."
+      },
+      {
+        tab: "Marketing", title: "SaaS Product Launch Email",
+        prompt: "Write a product launch email as a friendly mentor, targeting intermediate users who already use our analytics tool. Medium length (250 words). Energetic and motivating tone. Problem-solution structure — open by naming the exact pain point our new feature solves. No corporate jargon. Include exactly 3 bullet points for key benefits. End with a single CTA button text and one-line urgency statement. Subject line must be under 50 characters.",
+        explain: "Character limits, exact bullet counts, and subject line constraints push against the AI's tendency to be verbose. The specific audience (existing users) means the pain point can be very specific."
+      },
+      {
+        tab: "Technical", title: "API Documentation",
+        prompt: "Write technical documentation for a REST API endpoint as an authoritative expert. Target audience: intermediate developers familiar with REST but new to our API. Step-by-step guide format with numbered sections: Overview, Authentication, Request Parameters, Response Schema, Error Codes, Code Examples. Dry deadpan tone. Use active voice. Include concrete code examples in Python and JavaScript. No repetition between sections. End with common pitfalls section.",
+        explain: "The explicit section list transforms this from a writing task to a filling-in task — the AI can't drift because each section is named. Dry deadpan tone suits technical readers who dislike performative enthusiasm."
+      },
+      {
+        tab: "Creative", title: "Midnight Jazz Villanelle",
+        prompt: "Write a villanelle as a poet about a jazz musician playing alone in an empty club at 3am. The repeating lines should reference both the music and silence simultaneously. Melancholic yet beautiful tone. Each stanza should introduce one new sensory detail (sound → sight → smell → touch). Dense and concise — every syllable intentional. Avoid the words 'lonely', 'sad', 'beautiful', and 'feel'.",
+        explain: "Banning obvious emotional words (lonely, sad) forces the poem to show rather than tell — a masterclass in constraint-based creativity. The sensory progression stanza-by-stanza gives the AI a structural ladder to climb."
+      },
+      {
+        tab: "Analysis", title: "Geopolitical Risk Brief",
+        prompt: "Write an executive brief (400 words) analyzing the economic risks of semiconductor supply chain concentration in Taiwan, targeting C-suite decision-makers. Pyramid structure — open with the single most important conclusion. As a data journalist: cite 3 specific statistics, name 2 expert sources, flag one major uncertainty. Compare and contrast two policy response scenarios. No hedging language. End with three ranked actionable recommendations.",
+        explain: "The journalism persona prevents the typical AI behavior of treating everything as equally important. Ranking the recommendations forces the AI to make a judgment call — exactly what executives need."
+      },
+      {
+        tab: "UX Copy", title: "Empty State Microcopy",
+        prompt: "Write 5 variations of empty-state microcopy for a project management app when a user has no tasks yet. Audience: new users (complete beginners to the app). Ultra-short — max 15 words per variation. Range from: warm and encouraging, witty and humorous, minimal and direct, kawaii/playful, and action-oriented. Each must include a suggested CTA button label. Avoid clichés like 'Get started!' or 'Nothing here yet'.",
+        explain: "Five tones forces range and prevents the AI from finding one comfortable register. Banning the specific clichés shows you know the genre conventions — and prevents the exact outputs the AI would default to."
+      },
+      {
+        tab: "Interview", title: "Socratic Philosophy Dialogue",
+        prompt: "Write a 600-word Socratic dialogue between a philosopher and a student exploring whether AI can truly be creative. Use the Q&A format with the philosopher only asking questions, never making statements. Thoughtful and nuanced tone — avoid resolving the central tension. The student's position should evolve 3 times through the dialogue. Conversational but precise vocabulary. End mid-thought, leaving the reader to complete the reasoning.",
+        explain: "The constraint of the philosopher only asking questions is a genuine Socratic technique. An unresolved ending respects the reader's intelligence and mirrors how real philosophical inquiry works."
+      },
+      {
+        tab: "Children", title: "Why Do Stars Twinkle?",
+        prompt: "Explain why stars twinkle to a curious 8-year-old in exactly 200 words. Narrative story format — frame the science as an adventure the light beam goes on. Conversational and warm, enthusiastic tone. Use 3 simple analogies involving everyday objects children know (swimming pools, car windows, hot pavements). No technical terms — if a concept needs a word, invent a fun name for it. End with one question for the child to think about.",
+        explain: "The word count (exactly 200) prevents rambling. Letting the AI invent fun names for concepts is a powerful instruction — it leans into the format rather than fighting against its normal vocabulary."
+      },
+      {
+        tab: "Newsletter", title: "Weekly AI Roundup",
+        prompt: "Write a newsletter introduction (200 words) for a weekly AI news digest. Audience: general public — curious but non-technical. Energetic yet thoughtful tone. Open with an unexpected analogy comparing this week in AI to something from everyday life. Briefly tease 4 story headlines using only questions (no descriptions). Use active voice. No jargon. End with a single provocative question that the rest of the newsletter will explore.",
+        explain: "Questions-as-teasers is an editorial technique that creates suspense without spoiling — the reader needs to scroll. The 'unexpected analogy' instruction forces the AI out of its rote opener patterns."
+      },
+      {
+        tab: "Debate", title: "Steelman: 4-Day Work Week",
+        prompt: "As a devil's advocate, write the strongest possible case for a 4-day work week, targeting skeptical executive decision-makers who believe it will reduce productivity. Long-form (600 words), problem-solution structure. Cite 3 real studies or experiments by name. Authoritative expert tone. Anticipate and preemptively address the top 2 counterarguments within the argument itself. Use active voice. No hedging language. End with a challenge to the reader, not a soft conclusion.",
+        explain: "Devil's advocate + preemptive counterarguments forces the most sophisticated form of persuasion: the steelman. Naming studies (even if hallucinated) signals the level of evidence-quality expected."
+      },
+      {
+        tab: "Journaling", title: "Reflective Year-End Prompt",
+        prompt: "Write a reflective journaling prompt for adults going through a major life transition. Empathetic and supportive tone, second-person 'you'. Three distinct sections: (1) 3 questions about what you're leaving behind, (2) 3 questions about what you're stepping into, (3) 1 final question that holds both simultaneously. Conversational tangents welcome. Avoid toxic positivity — acknowledge difficulty. Each question should be open-ended and take at least a full paragraph to answer honestly.",
+        explain: "The three-part structure mirrors actual therapeutic journaling techniques. Explicitly banning toxic positivity is a real instruction — AI defaults to 'everything happens for a reason' sentiment without it."
+      },
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let mode = 'image';
+let selected = {}; // { catId: [{label, catId}] }
+let activeCategory = null;
+let examplesOpen = false;
+let activeExTab = null;
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+function init() {
+  renderAll();
+}
+
+function renderAll() {
+  renderCatList();
+  renderOptions();
+  renderExamples();
+  updateCopyBtn();
+  document.getElementById('mode-badge').className = 'mode-badge ' + (mode === 'image' ? 'img' : 'txt');
+  document.getElementById('mode-badge').textContent = mode === 'image' ? '🖼 Image Mode' : '✍️ Text Mode';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODE SWITCH
+// ═══════════════════════════════════════════════════════════════
+function switchMode(m) {
+  mode = m;
+  selected = {};
+  activeCategory = null;
+  activeExTab = null;
+  document.getElementById('tab-image').className = 'mode-tab' + (m === 'image' ? ' active-img' : '');
+  document.getElementById('tab-text').className = 'mode-tab' + (m === 'text' ? ' active-txt' : '');
+  document.getElementById('custom-input').value = '';
+  renderAll();
+  buildPrompt();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CATEGORY LIST
+// ═══════════════════════════════════════════════════════════════
+function renderCatList() {
+  const cats = DATA[mode].categories;
+  document.getElementById('cat-count').textContent = cats.length;
+  const el = document.getElementById('cat-list');
+  el.innerHTML = cats.map(cat => {
+    const selCount = (selected[cat.id] || []).length;
+    const isActive = activeCategory === cat.id;
+    const cls = isActive ? (mode === 'image' ? 'cat-item active active-img' : 'cat-item active active-txt') : 'cat-item';
+    return `<div class="${cls}" onclick="setCategory('${cat.id}')">
+      <span>${cat.icon} ${cat.label}</span>
+      <span class="cat-badge">${selCount > 0 ? selCount + ' ✓' : cat.options.length}</span>
+    </div>`;
+  }).join('');
+
+  // Tips
+  const tips = {
+    image: `<b style="color:var(--text)">💡 Pro Tips</b><br><br>
+• Combine 3–5 categories for the best results<br>
+• Lighting choices have the most impact on mood<br>
+• Kawaii + Pastel + Soft Diffused = perfect cozy art<br>
+• Always include a quality marker (8K, ArtStation)<br>
+• Add your subject last in the custom field<br>
+• Era + Setting = powerful world-building combo<br>
+• Camera/lens choices transform the feel of any scene`,
+    text: `<b style="color:var(--text)">💡 Pro Tips</b><br><br>
+• Persona + Audience = most important combo<br>
+• Constraints produce better writing than tone alone<br>
+• Banning clichés forces more original output<br>
+• Structure + Length together reduce AI bloat<br>
+• Use Devil's Advocate for stress-testing ideas<br>
+• Domain + Format = instantly professional output<br>
+• Combine multiple constraints for precision control`
+  };
+  document.getElementById('tips-content').innerHTML = tips[mode];
+}
+
+function setCategory(id) {
+  activeCategory = id;
+  renderCatList();
+  renderOptions();
+  setTimeout(() => {
+    const el = document.getElementById('cat-' + id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OPTIONS
+// ═══════════════════════════════════════════════════════════════
+function renderOptions(filterText) {
+  const cats = DATA[mode].categories;
+  const area = document.getElementById('options-area');
+  let html = '';
+  cats.forEach(cat => {
+    let opts = cat.options;
+    if (filterText) {
+      const q = filterText.toLowerCase();
+      opts = opts.filter(o => o.label.toLowerCase().includes(q) || o.desc.toLowerCase().includes(q));
+      if (opts.length === 0) return;
+    }
+    const selClass = mode === 'image' ? 'selected-img' : 'selected-txt';
+    html += `<div class="category-section" id="cat-${cat.id}">
+      <div class="cat-section-header">
+        <span class="cat-section-icon">${cat.icon}</span>
+        <div>
+          <div class="cat-section-title">${cat.label}</div>
+          <div class="cat-section-desc">${cat.desc}</div>
+        </div>
+      </div>
+      <div class="options-grid">
+        ${opts.map(opt => {
+          const isSelected = (selected[cat.id] || []).some(s => s.label === opt.label);
+          const cls = isSelected ? `option-card ${selClass}` : 'option-card';
+          return `<div class="${cls}" onclick="toggleOption('${cat.id}', '${escQ(opt.label)}', '${escQ(opt.desc)}', '${escQ(opt.tag)}')">
+            <div class="opt-check">✓</div>
+            <div class="opt-label">${opt.label}</div>
+            <div class="opt-desc">${opt.desc}</div>
+            <span class="opt-tag ${opt.tag}">${opt.tag}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+  area.innerHTML = html || '<div style="color:var(--muted);padding:2rem;text-align:center">No options match your search</div>';
+}
+
+function escQ(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+function toggleOption(catId, label, desc, tag) {
+  if (!selected[catId]) selected[catId] = [];
+  const idx = selected[catId].findIndex(s => s.label === label);
+  if (idx >= 0) selected[catId].splice(idx, 1);
+  else selected[catId].push({ label, catId });
+  renderOptions(document.getElementById('search-input').value);
+  renderCatList();
+  buildChips();
+  buildPrompt();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHIPS
+// ═══════════════════════════════════════════════════════════════
+function buildChips() {
+  const container = document.getElementById('chips-container');
+  const chipClass = mode === 'image' ? 'img-chip' : 'txt-chip';
+  const all = Object.values(selected).flat();
+  if (all.length === 0) {
+    container.innerHTML = '<span class="no-chips" id="no-chips-msg">No options selected yet — pick from the panels below ↓</span>';
+    return;
+  }
+  container.innerHTML = all.map(s =>
+    `<span class="chip ${chipClass}" onclick="removeChip('${s.catId}', '${escQ(s.label)}')">${s.label} <span class="chip-x">✕</span></span>`
+  ).join('');
+}
+
+function removeChip(catId, label) {
+  if (!selected[catId]) return;
+  selected[catId] = selected[catId].filter(s => s.label !== label);
+  renderOptions(document.getElementById('search-input').value);
+  renderCatList();
+  buildChips();
+  buildPrompt();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROMPT BUILDER
+// ═══════════════════════════════════════════════════════════════
+function buildPrompt() {
+  const out = document.getElementById('gen-output');
+  const custom = document.getElementById('custom-input').value.trim();
+  const all = Object.entries(selected);
+  const hasSelections = all.some(([,v]) => v.length > 0);
+
+  if (!hasSelections && !custom) {
+    out.innerHTML = '<div class="gen-placeholder">Select options above and add your subject to generate a prompt</div>';
+    return;
+  }
+
+  const cats = DATA[mode].categories;
+  let parts = [];
+  if (custom) parts.push(`<span class="token-custom">${custom}</span>`);
+
+  all.forEach(([catId, vals]) => {
+    if (vals.length === 0) return;
+    const cat = cats.find(c => c.id === catId);
+    const catLabel = cat ? cat.label : catId;
+    const valStr = vals.map(v => `<span class="token-val">${v.label}</span>`).join(', ');
+    parts.push(`<span class="token-cat">[${catLabel}]</span> ${valStr}`);
+  });
+
+  out.innerHTML = `<div class="gen-text">${parts.join(' — ')}</div>`;
+}
+
+function clearAll() {
+  selected = {};
+  document.getElementById('custom-input').value = '';
+  renderCatList();
+  renderOptions(document.getElementById('search-input').value);
+  buildChips();
+  buildPrompt();
+}
+
+function copyPrompt() {
+  const out = document.getElementById('gen-output');
+  const text = out.innerText.replace(/\[.*?\]/g, s => s).trim();
+  if (!text || text.includes('Select options')) return;
+  navigator.clipboard.writeText(text).then(() => showToast('✓ Copied to clipboard!'));
+}
+
+function updateCopyBtn() {
+  const btn = document.getElementById('copy-btn');
+  btn.className = 'btn-sm ' + (mode === 'image' ? 'primary-img' : 'primary-txt');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXAMPLES
+// ═══════════════════════════════════════════════════════════════
+function toggleExamples() {
+  examplesOpen = !examplesOpen;
+  document.getElementById('examples-body').style.display = examplesOpen ? 'block' : 'none';
+  document.getElementById('ex-toggle').className = 'examples-toggle' + (examplesOpen ? ' open' : '');
+}
+
+function renderExamples() {
+  const examples = DATA[mode].examples;
+  const tabs = [...new Set(examples.map(e => e.tab))];
+  if (!activeExTab || !tabs.includes(activeExTab)) activeExTab = tabs[0];
+
+  const tabClass = mode === 'image' ? 'active-img' : 'active-txt';
+  document.getElementById('ex-tabs').innerHTML = tabs.map(t =>
+    `<button class="ex-tab ${t === activeExTab ? tabClass : ''}" onclick="setExTab('${t}')">${t}</button>`
+  ).join('');
+
+  const filtered = examples.filter(e => e.tab === activeExTab);
+  document.getElementById('ex-cards').innerHTML = filtered.map((e, i) =>
+    `<div class="example-card" title="Click to view">
+      <div class="ex-num">Example ${String(i+1).padStart(2,'0')}</div>
+      <div class="ex-title">${e.title}</div>
+      <div class="ex-prompt">${e.prompt}</div>
+      <div class="ex-explain">📖 ${e.explain}</div>
+      <div class="ex-tags"><span class="ex-tag">${e.tab}</span><span class="ex-tag">${mode === 'image' ? 'image' : 'text'}</span></div>
+    </div>`
+  ).join('');
+}
+
+function setExTab(tab) {
+  activeExTab = tab;
+  renderExamples();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════════════════════════
+function doSearch(val) {
+  activeCategory = null;
+  renderOptions(val.trim() || undefined);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// START
+init();
+</script>
+</body>
+</html>
